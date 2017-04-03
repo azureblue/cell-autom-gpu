@@ -366,7 +366,13 @@ function CA(canvas, board) {
         offset.y += Math.round(yo * zoom / oldTileSize - yo);
     }
     
-     function handleTouchstart(evt) {
+    function forEachTouch(touchList, callback) {
+        for (var i = 0; i < touchList.length; i++)
+            callback(touchList.item(i));
+    } 
+    
+    function handleTouchstart(evt) {
+        evt.preventDefault();
         forEachTouch(evt.changedTouches, te =>
             touches.push({
                 lastPos: new Vec(te.clientX, te.clientY),
@@ -376,12 +382,12 @@ function CA(canvas, board) {
     }
 
     function handleTouchmove(evt) {
+        evt.preventDefault();
         if (touches.length === 1) {
             var currentPos = new Vec(evt.changedTouches[0].clientX, evt.changedTouches[0].clientY);
             var dxy = currentPos.vector_to(touches[0].lastPos);
             touches[0].lastPos = currentPos;
             offset.move(dxy);
-            render();
         }
     }
 
