@@ -30,8 +30,22 @@ function CA(canvas, bufferWidth, bufferHeight, roomSize) {
         cw = canvas.clientWidth;
         ch = canvas.clientHeight;
     };
+    
+    this.render = function() {
+        currentProgram = drawProgram;
+        currentProgram.use();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, cw, ch);
+        var pixXScale = 1 / cw * 2;
+        var pixYScale = 1 / ch * 2;
+        currentProgram.scale(pixXScale * zoom, -pixYScale * zoom);
+        gl.clearColor(0.0, 0.0, 0.0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        currentProgram.translate(-1 - offset.x * pixXScale, 1 + offset.y * pixYScale);       
+        this.drawTex(srcTex);
+    };
 
-    this.iterateAndRender = function() {
+    this.iterate = function() {
         currentProgram = caProgram;
         currentProgram.use();
         caProgram.setCASize(bufferWidth, bufferHeight);
@@ -45,18 +59,6 @@ function CA(canvas, bufferWidth, bufferHeight, roomSize) {
         gl.clear(gl.COLOR_BUFFER_BIT);
         currentProgram.translate(-1, 1);
         this.drawTex(srcTex);
-        
-        currentProgram = drawProgram;
-        currentProgram.use();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.viewport(0, 0, cw, ch);
-        var pixXScale = 1 / cw * 2;
-        var pixYScale = 1 / ch * 2;
-        currentProgram.scale(pixXScale * zoom, -pixYScale * zoom);
-        gl.clearColor(0.0, 0.0, 0.0, 1);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        currentProgram.translate(-1 - offset.x * pixXScale, 1 + offset.y * pixYScale);       
-        this.drawTex(destTex);
         
         var temp = srcTex;
         srcTex = destTex;
@@ -389,9 +391,12 @@ function CA(canvas, bufferWidth, bufferHeight, roomSize) {
         var bh = board.getHeight();
         var black = new Color(0, 0, 0);
         var white = new Color(255, 255, 255);
-        var srcBufferPixelArray = new Uint8Array(bw * bh * 3);
+        var pixelSize = 3;
+        var alignment = gl.getParameter(gl.UNPACK_ALIGNMENT);
+        var rowSize = Math.floor((bw * pixelSize + alignment - 1) / alignment) * alignment;
+        var srcBufferPixelArray = new Uint8Array(rowSize * bh);
         board.iteratePositions((x, y, v) => {
-            var idx = ((bh - y) * bw + x) * 3;
+            var idx = ((bh - y - 1) * rowSize + x * pixelSize) ;
             var color = v === 0 ? black : white;            
             srcBufferPixelArray[idx + 0] = color.r;
             srcBufferPixelArray[idx + 1] = color.g;

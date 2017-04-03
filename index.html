@@ -24,11 +24,14 @@
             function start() {
                 updateCanvasSize();
                 var frame = 0;
-                var board = new Board(200, 200);
+                var board = new Board(99, 99);
+                var b = 0;
                 board.iteratePositions((x, y) => board.set(x, y, randomBool() ? 1 : 0));
                 var ca = new CA(document.getElementById("canvas"), 2048, 1024, 100);
                 ca.updateSize();
-                ca.putBoard(board, 0, 0);
+                for (var i = 0; i < 10; i++)
+                    for (var j = 0; j < 20; j++)
+                        ca.putBoard(board, j * 100 + 1, i * 100 + 1);
                 function resizeCallback() {
                     updateCanvasSize();
                     ca.updateSize();
@@ -36,10 +39,13 @@
                 window.addEventListener("resize", resizeCallback);
                 function nextIteration() {
                     frame++;
-                    if (frame % 2 === 0)
-                        ca.iterateAndRender();
+                    ca.render();
+                    if (frame % 2 === 0) {
+                        ca.iterate();
+                    }
                     window.requestAnimationFrame(nextIteration);
                 }
+                ca.render();
                 nextIteration();
             }
             
