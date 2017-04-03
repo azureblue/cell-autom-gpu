@@ -114,7 +114,7 @@ function CA(canvas, board) {
         gl.bindTexture(gl.TEXTURE_2D, srcTex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, bufferSize, bufferSize, 0, gl.RGB, gl.UNSIGNED_BYTE, srcBufferPixelArray);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         
@@ -122,7 +122,7 @@ function CA(canvas, board) {
         gl.bindTexture(gl.TEXTURE_2D, destTex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, bufferSize, bufferSize, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         
@@ -357,8 +357,8 @@ function CA(canvas, board) {
     function zoom(tileSizeChange) {
         let oldTileSize = tileSize;
         tileSize += tileSizeChange;
-        if (tileSize < 0.25)
-            tileSize = 0.25;
+        if (tileSize < 0.015625)
+            tileSize = 0.015625;
         var mousePos = Vec.from_event(event);
         let xo = offset.x + mousePos.x;
         let yo = offset.y + mousePos.y;
