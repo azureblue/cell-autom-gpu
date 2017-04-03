@@ -24,10 +24,11 @@
             function start() {
                 updateCanvasSize();
                 var frame = 0;
-                var board = new Board(1022, 1022);
+                var board = new Board(200, 200);
                 board.iteratePositions((x, y) => board.set(x, y, randomBool() ? 1 : 0));
-                var ca = new CA(document.getElementById("canvas"), board);
+                var ca = new CA(document.getElementById("canvas"), 2048, 1024, 100);
                 ca.updateSize();
+                ca.putBoard(board, 0, 0);
                 function resizeCallback() {
                     updateCanvasSize();
                     ca.updateSize();
