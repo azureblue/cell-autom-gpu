@@ -24,19 +24,25 @@
             function start() {
                 updateCanvasSize();
                 var frame = 0;
-                var board = new Board(99, 99);
+                var board = new Board(1024, 1023);
                 var b = 0;
                 board.iteratePositions((x, y) => board.set(x, y, randomBool() ? 1 : 0));
-                var ca = new CA(document.getElementById("canvas"), 2048, 1024, 100);
+                var ca = new CA(document.getElementById("canvas"), 2048, 1024, 2047, 1023);
                 ca.updateSize();
-                for (var i = 0; i < 10; i++)
-                    for (var j = 0; j < 20; j++)
-                        ca.putBoard(board, j * 100 + 1, i * 100 + 1);
+                ca.setZoom(1);
+                ca.setCenter(1024, 512);
+                ca.putBoard(board, 513, 1);
+                
+                window.addEventListener("resize", resizeCallback);
+                
+                ca.render();
+                nextIteration();
+                
                 function resizeCallback() {
                     updateCanvasSize();
                     ca.updateSize();
                 }
-                window.addEventListener("resize", resizeCallback);
+                
                 function nextIteration() {
                     frame++;
                     ca.render();
@@ -45,8 +51,6 @@
                     }
                     window.requestAnimationFrame(nextIteration);
                 }
-                ca.render();
-                nextIteration();
             }
             
             

@@ -1,4 +1,4 @@
-function CA(canvas, bufferWidth, bufferHeight, roomSize) {
+function CA(canvas, bufferWidth, bufferHeight, roomWidth, roomHeight) {
     const minZoom = 1 / (1 << 4);
     var zoom = 2;
     var srcTex, destTex;
@@ -44,12 +44,21 @@ function CA(canvas, bufferWidth, bufferHeight, roomSize) {
         currentProgram.translate(-1 - offset.x * pixXScale, 1 + offset.y * pixYScale);       
         this.drawTex(srcTex);
     };
+    
+    this.setCenter = function(x, y) {
+        offset.x = x * zoom - cw / 2;
+        offset.y = y * zoom - ch / 2;
+    };
+    
+    this.setZoom = function(zo) {
+        zoom = Math.round(zo);
+    }
 
     this.iterate = function() {
         currentProgram = caProgram;
         currentProgram.use();
         caProgram.setCASize(bufferWidth, bufferHeight);
-        caProgram.setCARoomSize(roomSize, roomSize);
+        caProgram.setCARoomSize(roomWidth + 1, roomHeight + 1);
         gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferDest);
         gl.viewport(0, 0, bufferWidth, bufferHeight);
         var pixXScale = 1 / bufferWidth * 2;
@@ -67,8 +76,6 @@ function CA(canvas, bufferWidth, bufferHeight, roomSize) {
         frameBufferDest = frameBufferSrc;
         frameBufferSrc = temp;
     };
-
-    this.getSize = () => size;
 
     this.draw = function () {
         gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
