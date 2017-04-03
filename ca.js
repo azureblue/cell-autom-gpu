@@ -136,8 +136,6 @@ function CA(canvas, board) {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, srcTex, 0);
         gl.bindTexture(gl.TEXTURE_2D, srcTex);
         gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, bufferSize, bufferSize, gl.RGB, gl.UNSIGNED_BYTE, srcBufferPixelArray);
-    
-        
     }
     
     function DrawProgram() {
@@ -211,42 +209,43 @@ function CA(canvas, board) {
                 attribute vec2 aTexPos;
                 uniform mat4 scale;
                 uniform vec4 translation;
-                varying vec2 vTexPos;
+                varying vec2 tp;
         
                 void main(void) {
                    gl_Position = scale * vec4(pos, 1) + translation;
-                   vTexPos = aTexPos;
+                   tp = aTexPos;
                 }
         `;
 
         var fragmentShaderSrc = `
                 precision mediump float;
-                uniform sampler2D uSampler;
-                uniform int buffSize;
-                varying vec2 vTexPos;                 
-                float bs = float(buffSize);
-                float cellSize = 1.0 / bs;
+        
+                uniform sampler2D tex;
+                uniform float bs;
+                varying vec2 tp;                 
+        
+                float cs = 1.0 / bs;
+                float bsEdge = bs - 0.5;
+                
                 void main(void) {
-                   if (mod(gl_FragCoord.x, bs) < 1.0)
+                   float modx = mod(gl_FragCoord.x, bs);
+                   float mody = mod(gl_FragCoord.y, bs);
+                   if (modx == 0.5 || modx == bsEdge)
                        discard;
-                   if (mod(gl_FragCoord.x, bs) > bs - 1.0)
-                       discard;
-                   if (mod(gl_FragCoord.y, bs) < 1.0)
-                       discard;
-                   if (mod(gl_FragCoord.y, bs) > bs - 1.0)
+                   if (mody == 0.5 || mody == bsEdge)
                        discard;
         
                    float adj = 0.0;
-                   adj += texture2D(uSampler, vec2(vTexPos.x - cellSize, vTexPos.y - cellSize)).r;
-                   adj += texture2D(uSampler, vec2(vTexPos.x, vTexPos.y - cellSize)).r;
-                   adj += texture2D(uSampler, vec2(vTexPos.x + cellSize, vTexPos.y - cellSize)).r;
-                   adj += texture2D(uSampler, vec2(vTexPos.x - cellSize, vTexPos.y)).r;
-                   adj += texture2D(uSampler, vec2(vTexPos.x + cellSize, vTexPos.y)).r;
-                   adj += texture2D(uSampler, vec2(vTexPos.x - cellSize, vTexPos.y + cellSize)).r;
-                   adj += texture2D(uSampler, vec2(vTexPos.x, vTexPos.y + cellSize)).r;
-                   adj += texture2D(uSampler, vec2(vTexPos.x + cellSize, vTexPos.y + cellSize)).r;
+                   adj += texture2D(tex, vec2(tp.x - cs, tp.y - cs)).r;
+                   adj += texture2D(tex, vec2(tp.x,      tp.y - cs)).r;
+                   adj += texture2D(tex, vec2(tp.x + cs, tp.y - cs)).r;
+                   adj += texture2D(tex, vec2(tp.x - cs, tp.y     )).r;
+                   adj += texture2D(tex, vec2(tp.x + cs, tp.y     )).r;
+                   adj += texture2D(tex, vec2(tp.x - cs, tp.y + cs)).r;
+                   adj += texture2D(tex, vec2(tp.x,      tp.y + cs)).r;
+                   adj += texture2D(tex, vec2(tp.x + cs, tp.y + cs)).r;
                    
-                   if (texture2D(uSampler, vec2(vTexPos.x, vTexPos.y)).r == 1.0)
+                   if (texture2D(tex, vec2(tp.x, tp.y)).r == 1.0)
                        gl_FragColor = (adj == 2.0 || adj == 3.0) ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);
                    else
                        gl_FragColor = (adj == 3.0) ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);         
@@ -268,11 +267,11 @@ function CA(canvas, board) {
         
         var translation = gl.getUniformLocation(drawProgram, "translation");
         var scale = gl.getUniformLocation(drawProgram, "scale");
-        var buffSize = gl.getUniformLocation(drawProgram, "buffSize");
+        var buffSize = gl.getUniformLocation(drawProgram, "bs");
 
         this.posAttr = gl.getAttribLocation(drawProgram, "pos");
         this.texCordAttr = gl.getAttribLocation(drawProgram, "aTexPos");
-        this.texSamplerUnif = gl.getUniformLocation(drawProgram, "uSampler");
+        this.texSamplerUnif = gl.getUniformLocation(drawProgram, "tex");
         gl.enableVertexAttribArray(this.posAttr);
         gl.enableVertexAttribArray(this.texCordAttr);
         
@@ -290,7 +289,7 @@ function CA(canvas, board) {
         };
         
         this.setCASize = function (size) {
-            gl.uniform1i(buffSize, size);
+            gl.uniform1f(buffSize, size);
         };
         
         this.use = function() {
