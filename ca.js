@@ -9,9 +9,23 @@ function CA(canvas, board) {
     var frameBufferSrc, frameBufferDest;
     var gl;
     var cw, ch;
+    var mouse_down_point, mouse_move_point, dragging = false;
+    var touches = [];
+    var tileSize = 2;
+    var offset = new Vec(0, 0);
     var currentProgram, drawProgram, caProgram;
     
+    canvas.addEventListener("touchstart", handleTouchstart);
+    canvas.addEventListener("touchend", handleTouchend);
+    canvas.addEventListener("touchmove", handleTouchmove);
+    canvas.addEventListener("mousemove", handle_mouse_move);
+    canvas.addEventListener("mousedown", handle_mouse_down);
+    canvas.addEventListener("mouseup", handle_mouse_drag_stop);
+    canvas.addEventListener("mouseout", handle_mouse_drag_stop);
+    canvas.addEventListener("wheel", handle_mouse_wheel);
+    
     init();
+    
 
     this.updateSize = function() {
         cw = canvas.clientWidth;
@@ -35,12 +49,12 @@ function CA(canvas, board) {
         currentProgram.use();
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, cw, ch);
-        var pixXScale = 1 / cw * 4;
-        var pixYScale = 1 / ch * 4;
-        currentProgram.scale(pixXScale, -pixYScale);
+        var pixXScale = 1 / cw * 2;
+        var pixYScale = 1 / ch * 2;
+        currentProgram.scale(pixXScale * tileSize, -pixYScale * tileSize);
         gl.clearColor(0.0, 0.0, 0.0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
-        currentProgram.translate(-1, 1);       
+        currentProgram.translate(-1 - offset.x * pixXScale, 1 + offset.y * pixYScale);       
         this.drawTex(destTex);
         
         var temp = srcTex;
@@ -207,28 +221,34 @@ function CA(canvas, board) {
         var fragmentShaderSrc = `
                 precision mediump float;
                 uniform sampler2D uSampler;
-                uniform float cellSize;
-                varying vec2 vTexPos; 
-                
+                uniform int buffSize;
+                varying vec2 vTexPos;                 
+                float bs = float(buffSize);
+                float cellSize = 1.0 / bs;
                 void main(void) {
-                   int adj = 0;
-                   if (texture2D(uSampler, vec2(vTexPos.x - cellSize, vTexPos.y - cellSize))[0] > 0.0) adj++;
-                   if (texture2D(uSampler, vec2(vTexPos.x, vTexPos.y - cellSize))[0] > 0.0) adj++;
-                   if (texture2D(uSampler, vec2(vTexPos.x + cellSize, vTexPos.y - cellSize))[0] > 0.0) adj++;
-                   if (texture2D(uSampler, vec2(vTexPos.x - cellSize, vTexPos.y))[0] > 0.0) adj++;
-                   if (texture2D(uSampler, vec2(vTexPos.x + cellSize, vTexPos.y))[0] > 0.0) adj++;
-                   if (texture2D(uSampler, vec2(vTexPos.x - cellSize, vTexPos.y + cellSize))[0] > 0.0) adj++;
-                   if (texture2D(uSampler, vec2(vTexPos.x, vTexPos.y + cellSize))[0] > 0.0) adj++;
-                   if (texture2D(uSampler, vec2(vTexPos.x + cellSize, vTexPos.y + cellSize))[0] > 0.0) adj++;
-                   if (texture2D(uSampler, vec2(vTexPos.x, vTexPos.y))[0] > 0.0) {
-                      if (adj == 2 || adj == 3)
-                        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
-                      else
-                        gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-                   } else if (adj == 3)
-                        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
-                     else
-                        gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);      
+                   if (mod(gl_FragCoord.x, bs) < 1.0)
+                       discard;
+                   if (mod(gl_FragCoord.x, bs) > bs - 1.0)
+                       discard;
+                   if (mod(gl_FragCoord.y, bs) < 1.0)
+                       discard;
+                   if (mod(gl_FragCoord.y, bs) > bs - 1.0)
+                       discard;
+        
+                   float adj = 0.0;
+                   adj += texture2D(uSampler, vec2(vTexPos.x - cellSize, vTexPos.y - cellSize)).r;
+                   adj += texture2D(uSampler, vec2(vTexPos.x, vTexPos.y - cellSize)).r;
+                   adj += texture2D(uSampler, vec2(vTexPos.x + cellSize, vTexPos.y - cellSize)).r;
+                   adj += texture2D(uSampler, vec2(vTexPos.x - cellSize, vTexPos.y)).r;
+                   adj += texture2D(uSampler, vec2(vTexPos.x + cellSize, vTexPos.y)).r;
+                   adj += texture2D(uSampler, vec2(vTexPos.x - cellSize, vTexPos.y + cellSize)).r;
+                   adj += texture2D(uSampler, vec2(vTexPos.x, vTexPos.y + cellSize)).r;
+                   adj += texture2D(uSampler, vec2(vTexPos.x + cellSize, vTexPos.y + cellSize)).r;
+                   
+                   if (texture2D(uSampler, vec2(vTexPos.x, vTexPos.y)).r == 1.0)
+                       gl_FragColor = (adj == 2.0 || adj == 3.0) ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);
+                   else
+                       gl_FragColor = (adj == 3.0) ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);         
                 }
         `;
         
@@ -247,7 +267,7 @@ function CA(canvas, board) {
         
         var translation = gl.getUniformLocation(drawProgram, "translation");
         var scale = gl.getUniformLocation(drawProgram, "scale");
-        var cellSize = gl.getUniformLocation(drawProgram, "cellSize");
+        var buffSize = gl.getUniformLocation(drawProgram, "buffSize");
 
         this.posAttr = gl.getAttribLocation(drawProgram, "pos");
         this.texCordAttr = gl.getAttribLocation(drawProgram, "aTexPos");
@@ -269,7 +289,7 @@ function CA(canvas, board) {
         };
         
         this.setCASize = function (size) {
-            gl.uniform1f(cellSize, 1 / size);
+            gl.uniform1i(buffSize, size);
         };
         
         this.use = function() {
@@ -296,5 +316,78 @@ function CA(canvas, board) {
         gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
         
         initTexture();
+    }
+    
+    function handle_mouse_down(event) {
+        if (event.button === 2) {
+            event.preventDefault();
+            return;
+        }
+
+        mouse_down_point = Vec.from_event(event);
+        mouse_move_point = Vec.from_event(event);
+
+        dragging = true;
+    }
+
+    function handle_mouse_drag_stop(event) {
+        if (!dragging)
+            return;
+        
+        dragging = false;
+    }
+
+    function handle_mouse_move(event) {
+        if (!dragging)
+            return;
+
+        var temp_mouse_move_point = Vec.from_event(event);
+        var dxy = temp_mouse_move_point.vector_to(mouse_move_point);
+
+        offset.move(dxy);
+
+        mouse_move_point = temp_mouse_move_point;
+    }
+    
+    function handle_mouse_wheel(event) {
+        var tileSizeChange = ((event.deltaY < 0) ? tileSize : -(tileSize / 2));
+        zoom(tileSizeChange);
+    }
+
+    function zoom(tileSizeChange) {
+        let oldTileSize = tileSize;
+        tileSize += tileSizeChange;
+        if (tileSize < 0.25)
+            tileSize = 0.25;
+        var mousePos = Vec.from_event(event);
+        let xo = offset.x + mousePos.x;
+        let yo = offset.y + mousePos.y;
+        offset.x += Math.round(xo * tileSize / oldTileSize - xo);
+        offset.y += Math.round(yo * tileSize / oldTileSize - yo);
+    }
+    
+     function handleTouchstart(evt) {
+        forEachTouch(evt.changedTouches, te =>
+            touches.push({
+                lastPos: new Vec(te.clientX, te.clientY),
+                event: te
+            })
+        );
+    }
+
+    function handleTouchmove(evt) {
+        if (touches.length === 1) {
+            var currentPos = new Vec(evt.changedTouches[0].clientX, evt.changedTouches[0].clientY);
+            var dxy = currentPos.vector_to(touches[0].lastPos);
+            touches[0].lastPos = currentPos;
+            offset.move(dxy);
+            render();
+        }
+    }
+
+    function handleTouchend(evt) {
+        forEachTouch(evt.changedTouches, te =>
+            touches = touches.filter(tc => tc.event.identifier !== te.identifier)
+        );
     }
 }
