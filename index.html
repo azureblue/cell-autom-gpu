@@ -34,8 +34,7 @@
                 ca.putBoard(board, 513, 1);
                 
                 window.addEventListener("resize", resizeCallback);
-                
-                ca.render();
+              
                 nextIteration();
                 
                 function resizeCallback() {
@@ -44,9 +43,9 @@
                 }
                 
                 function nextIteration() {
-                    frame++;
-                    ca.render();
+                    frame++;                    
                     if (frame % 2 === 0) {
+                        ca.render();
                         ca.iterate();
                     }
                     window.requestAnimationFrame(nextIteration);
