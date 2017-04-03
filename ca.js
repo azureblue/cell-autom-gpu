@@ -1,6 +1,8 @@
 function CA(canvas, board) {
     const size = board.getWidth();
     const bufferSize = size + 2;
+    const minZoom = 1 / (1 << 4);
+    var zoom = 2;
     var srcTex, destTex;
     var vertices;
     var texCoords;
@@ -11,7 +13,6 @@ function CA(canvas, board) {
     var cw, ch;
     var mouse_down_point, mouse_move_point, dragging = false;
     var touches = [];
-    var tileSize = 2;
     var offset = new Vec(0, 0);
     var currentProgram, drawProgram, caProgram;
     
@@ -24,7 +25,7 @@ function CA(canvas, board) {
     canvas.addEventListener("mouseout", handle_mouse_drag_stop);
     canvas.addEventListener("wheel", handle_mouse_wheel);
     
-    init();
+    initGl();
     
 
     this.updateSize = function() {
@@ -51,7 +52,7 @@ function CA(canvas, board) {
         gl.viewport(0, 0, cw, ch);
         var pixXScale = 1 / cw * 2;
         var pixYScale = 1 / ch * 2;
-        currentProgram.scale(pixXScale * tileSize, -pixYScale * tileSize);
+        currentProgram.scale(pixXScale * zoom, -pixYScale * zoom);
         gl.clearColor(0.0, 0.0, 0.0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
         currentProgram.translate(-1 - offset.x * pixXScale, 1 + offset.y * pixYScale);       
@@ -297,7 +298,7 @@ function CA(canvas, board) {
         };
     }
     
-    function init() {
+    function initGl() {
         gl = canvas.getContext("webgl");
         drawProgram = new DrawProgram();
         caProgram = new CAProgram();
@@ -350,20 +351,19 @@ function CA(canvas, board) {
     }
     
     function handle_mouse_wheel(event) {
-        var tileSizeChange = ((event.deltaY < 0) ? tileSize : -(tileSize / 2));
-        zoom(tileSizeChange);
+        var nz = ((event.deltaY < 0) ? zoom * 2 : zoom / 2);
+        changeZoom(nz, Vec.from_event(event));
     }
 
-    function zoom(tileSizeChange) {
-        let oldTileSize = tileSize;
-        tileSize += tileSizeChange;
-        if (tileSize < 0.015625)
-            tileSize = 0.015625;
-        var mousePos = Vec.from_event(event);
+    function changeZoom(scale, mousePos) {
+        let oldTileSize = zoom;
+        zoom = scale;
+        if (zoom < minZoom)
+            zoom = minZoom;
         let xo = offset.x + mousePos.x;
         let yo = offset.y + mousePos.y;
-        offset.x += Math.round(xo * tileSize / oldTileSize - xo);
-        offset.y += Math.round(yo * tileSize / oldTileSize - yo);
+        offset.x += Math.round(xo * zoom / oldTileSize - xo);
+        offset.y += Math.round(yo * zoom / oldTileSize - yo);
     }
     
      function handleTouchstart(evt) {
