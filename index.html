@@ -21,17 +21,34 @@
                 canvas.height = canvas.clientHeight;
             }
             
+            function createParamMap() {
+                var map = {};
+                var params = window.location.search.substr(1).split("&");
+                params.forEach(par => {
+                    var kv = par.split("=");
+                    map[kv[0]] = kv[1];
+                });
+                return map;  
+            };
+            
             function start() {
                 updateCanvasSize();
                 var frame = 0;
-                var board = new Board(1024, 1023);
+                var board = new Board(1000, 1000);
                 var b = 0;
-                board.iteratePositions((x, y) => board.set(x, y, randomBool() ? 1 : 0));
+                
+                board.iteratePositions((x, y) => 
+                    board.set(x, y, randomBool() ? 1 : 0)
+                );
+        
                 var ca = new CA(document.getElementById("canvas"), 2048, 1024, 2047, 1023);
+                var params = createParamMap();
+                if (params.rule !== undefined)
+                    ca.setRule(params.rule);
                 ca.updateSize();
                 ca.setZoom(1);
                 ca.setCenter(1024, 512);
-                ca.putBoard(board, 513, 1);
+                ca.putBoard(board, 523, 10);
                 
                 window.addEventListener("resize", resizeCallback);
               
@@ -42,11 +59,25 @@
                     ca.updateSize();
                 }
                 
+                window.addEventListener("keydown", function(evt) {
+                    switch (evt.key) {
+                        case " ":
+                            iterating = !iterating;
+                            break;
+                        case "Shift":
+                        case "i":
+                            ca.iterate();
+                    }
+                });
+                
+                var iterating = true;
+                
                 function nextIteration() {
                     frame++;                    
                     if (frame % 2 === 0) {
                         ca.render();
-                        ca.iterate();
+                        if (iterating)
+                            ca.iterate();
                     }
                     window.requestAnimationFrame(nextIteration);
                 }
