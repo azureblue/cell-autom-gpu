@@ -7,8 +7,7 @@
 
         "view": {
             "scale": 2,
-            "centerX": 256,
-            "centerY": 256
+            "center": [256, 256]
         },
 
         "room": {
@@ -19,35 +18,24 @@
         }
     },
 
-    "initialState": [{
-            "roomX": 0,
-            "roomY": 0,
-            "dataset": "random256x256"
-        }, {
-            "roomX": 1,
-            "roomY": 0,
-            "dataset": "random256x256"
-        }, {
-            "roomX": 0,
-            "roomY": 1,
-            "dataset": "checker256x256"
-        }, {
-            "roomX": 1,
-            "roomY": 1,
-            "dataset": "checker256x256"
-        }
+    "state": [
+        { "room": [0, 0], "dataset": "random256x256" },
+        { "room": [1, 0], "dataset": "random256x256" },
+        { "room": [0, 1], "dataset": "random256x256" },
+        { "room": [1, 1], "dataset": "random256x256" }
     ],
 
-    "datasets": [{
-            "name": "checker256x256",
+    "datasets": {
+        "checker256x256": {
             "width": 256,
             "height": 256,
             "format": "bits",
             "url": "checker256.bits"
-        }, {
-            "name": "random256x256",
+        },        
+        "random256x256": {
             "width": 256,
             "height": 256,
             "format": "random"
-        }]
+        }
+    }
 }

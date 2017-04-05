@@ -21,19 +21,20 @@ async function createCAFromJson(configJson) {
 
     var datasetsBoards = {};
     
-    for (let dataset of config.datasets) {
+    for (let datasetName of Object.keys(config.datasets)) {
+        var dataset = config.datasets[datasetName];
         var w = dataset.width;
         var h = dataset.height;
         var format = dataset.format;
-        //hardcoded format for now
+        //hardcoded formats for now
         if (dataset.hasOwnProperty("url")) {
             if (format !== 'bits')
                 throw "unsupported format for url: " + format;
-            datasetsBoards[dataset.name] = await loadBoardFromBinUrl(w, h, dataset.url);
+            datasetsBoards[datasetName] = await loadBoardFromBinUrl(w, h, dataset.url);
             continue;
         }
-        if (format == "random") {
-            datasetsBoards[dataset.name] = await loadBoardRandom(w, h);
+        if (format === "random") {
+            datasetsBoards[datasetName] = await loadBoardRandom(w, h);
             continue;
         }
         
@@ -41,21 +42,20 @@ async function createCAFromJson(configJson) {
     }
 
     var boardsToLoad = [];
-    config.initialState.forEach(init => {
-        var caX = init.roomX * (config.ca.room.width + 1) + 1;
-        var caY = init.roomY * (config.ca.room.height + 1) + 1;
+    config.state.forEach(init => {
+        var roomPos = new Vec(...init.room);
+        roomPos.multiply(config.ca.room.width + 1, config.ca.room.height + 1).add(1, 1);
         var board = datasetsBoards[init.dataset];
         if (board === undefined)
             throw "invalid dataset: " + init.dataset;
         boardsToLoad.push({
             board: board,
-            x: caX,
-            y: caY
+            pos: roomPos
         });
     });
     
-    var caConfig = new CaConfig(config.ca);
-    caConfig.initialState = boardsToLoad;
+    var caConfig = CaConfig.fromJsonCaConfig(config.ca);
+    caConfig.boardsToLoad = boardsToLoad;
     var ca = new CA(caConfig);
 
     return ca;

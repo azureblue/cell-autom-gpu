@@ -19,6 +19,17 @@
             function getCanvas() {
                 return document.getElementById("canvas");
             }
+            
+            function createParamMap() {
+                var map = {};
+                var params = window.location.search.substr(1).split("&");
+                params.forEach(par => {
+                    var kv = par.split("=");
+                    map[kv[0]] = kv[1];
+                });
+                return map;  
+            };
+            
             function updateCanvasSize() {
                 var canvas = getCanvas();
                 canvas.width = canvas.clientWidth;
@@ -27,7 +38,24 @@
 
             function start() {
                 updateCanvasSize();
-                loadCA("example-config.json").then(ca => {
+                var params = createParamMap();
+                if (params.config)
+                    loadCA(params.config).then(ca => start(ca));
+                else {
+                    var caConfig = new CaConfig(1024, 1024);
+                    caConfig.rule = params.rule || "B3/S23";
+                    caConfig.boardsToLoad = [
+                        {
+                            board: new Board(1024, 1024, new Array(1024 * 1024).fill(0).map(() => randomBool() ? 1 : 0)),
+                            pos: new Vec(0, 0)
+                        }
+                    ];
+                    var ca = new CA(caConfig);
+                    start(ca);
+                    
+                }
+                
+                function start(ca) {
                     ca.init(getCanvas());
                     nextIteration();
                     
@@ -63,7 +91,7 @@
                         }
                         window.requestAnimationFrame(nextIteration);
                     }
-                });
+                }
 
 
 //                var board = new Board(1000, 1000);

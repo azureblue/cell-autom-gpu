@@ -344,6 +344,7 @@ function CA(caConfig) {
         gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
         
         initTexture();
+        this.iterate();
         this.setRule(caConfig.rule);
         this.setZoom(caConfig.zoom);
         this.setCenter(...caConfig.center);
@@ -357,7 +358,7 @@ function CA(caConfig) {
         canvas.addEventListener("mouseout", handle_mouse_drag_stop);
         canvas.addEventListener("wheel", handle_mouse_wheel);
         
-        caConfig.initialState.forEach(state => this.putBoard(state.board, state.x, state.y));
+        caConfig.boardsToLoad.forEach(btl => this.putBoard(btl.board, ...btl.pos));
     }
     
     function handle_mouse_down(event) {
@@ -459,13 +460,23 @@ function CA(caConfig) {
     };
 }
 
-function CaConfig(config) {
-    this.bufferWidth = config.buffer.width;
-    this.bufferHeight = config.buffer.height;
-    this.roomWidth = config.room.width;
-    this.roomHeight = config.room.height;
-    this.rule = config.room.rule;
-    this.zoom = config.view.scale;
-    this.center = [config.view.centerX, config.view.centerY];
-    this.initialState = [];
+function CaConfig(bufferWidth, bufferHeight) {
+    this.bufferWidth = bufferWidth;
+    this.bufferHeight = bufferHeight;
+    this.roomWidth = bufferWidth;
+    this.roomHeight = bufferHeight;
+    this.rule = "B3/S23";
+    this.zoom = 1;
+    this.center = new Vec(bufferWidth / 2, bufferHeight / 2);
+    this.boardsToLoad = [];
 }
+
+CaConfig.fromJsonCaConfig = function(config) {
+    var caConfig = new CaConfig(config.buffer.width, config.buffer.height);
+    if (config.room.width) caConfig.roomWidth = config.room.width;
+    if (config.room.height) caConfig.roomHeight = config.room.height;
+    if (config.room.rule) caConfig.rule = config.room.rule;
+    if (config.view.scale) caConfig.zoom = config.view.scale;
+    if (config.view.center) caConfig.center = new Vec(...config.view.center);
+    return caConfig;
+};

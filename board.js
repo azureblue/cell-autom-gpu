@@ -1,7 +1,8 @@
-function Board(w, h) {
+function Board(w, h, data) {
     var bounds = new Rect(0, 0, w, h);
     var iterationBounds = new Rect(0, 0, w, h);
-    var array = new Int32Array(w * h);
+    var array = new Int32Array(data || w * h);
+        
     this.checkRange = (x, y) => bounds.inside(x, y);
     this.get = (x, y) => array[y * w + x];
     this.set = (x, y, b) => array[y * w + x] = b;

@@ -33,6 +33,23 @@ Vec.prototype.inverse = function () {
     return this;
 };
 
+Vec.prototype.multiply = function(m, n) {
+    this.x *= m;
+    this.y *= n || m;
+    return this;
+};
+
+Vec.prototype.add = function(m, n) {
+    this.x += m;
+    this.y += n || m;
+    return this;
+};
+
+Vec.prototype[Symbol.iterator] = function*() {
+    yield this.x;
+    yield this.y;
+};
+
 Vec.dist = function(a, b) {
     var dx = b.x - a.x;
     var dy = b.y - a.y;
