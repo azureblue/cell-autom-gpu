@@ -13,96 +13,76 @@
         <script src="geom.js"></script>
         <script src="color.js"></script>
         <script src="ca.js"></script>
+        <script src="caloader.js"></script>
 
         <script>
+            function getCanvas() {
+                return document.getElementById("canvas");
+            }
             function updateCanvasSize() {
-                var canvas = document.getElementById("canvas");
+                var canvas = getCanvas();
                 canvas.width = canvas.clientWidth;
                 canvas.height = canvas.clientHeight;
             }
-            
-            async function loadConfigFromURL(url) {
-                var loadUrlPromise = new Promise((resolve, reject) => {
-                    var req = new XMLHttpRequest();
-                    req.open("GET", url);
-                    req.responseType = "json";
-                    req.onload = () => {
-                        if (req.status === 200)
-                            resolve(req.responseText);
-                        else
-                            reject();
-                    };
-                    req.send();
-                });
-                var json = await loadConfigFromURL;
-                return json;
-            }
-            
-            function createParamMap() {
-                var map = {};
-                var params = window.location.search.substr(1).split("&");
-                params.forEach(par => {
-                    var kv = par.split("=");
-                    map[kv[0]] = kv[1];
-                });
-                return map;  
-            };
-            
+
             function start() {
                 updateCanvasSize();
-                var frame = 0;
-                var board = new Board(1000, 1000);
-                
-                board.iteratePositions((x, y) => 
-                    board.set(x, y, randomBool() ? 1 : 0)
-                );
-        
-                var ca = new CA(document.getElementById("canvas"), 2048, 1024, 2047, 1023);
-                var params = createParamMap();
-                if (params.rule !== undefined)
-                    ca.setRule(params.rule);
-                
-                ca.updateSize();
-                ca.setZoom(1);
-                ca.setCenter(1024, 512);
-                ca.putBoard(board, 523, 10);
-                
-                window.addEventListener("resize", resizeCallback);
-              
-                nextIteration();
-                
-                function resizeCallback() {
-                    updateCanvasSize();
-                    ca.updateSize();
-                }
-                
-                window.addEventListener("keydown", function(evt) {
-                    switch (evt.key) {
-                        case " ":
-                            iterating = !iterating;
-                            break;
-                        case "Shift":
-                        case "i":
-                            ca.iterate();
+                loadCA("example-config.json").then(ca => {
+                    ca.init(getCanvas());
+                    nextIteration();
+                    
+                    window.addEventListener("resize", resizeCallback);
+
+                    function resizeCallback() {
+                        updateCanvasSize();
+                        ca.updateSize();
+                    }
+                    
+                    window.addEventListener("keydown", function (evt) {
+                        switch (evt.key) {
+                            case " ":
+                                iterating = !iterating;
+                                break;
+                            case "Shift":
+                            case "i":
+                                ca.iterate();
+                        }
+                    });
+                    var frame = 0;
+
+                    var iterating = true;
+//                if (params.pause !== undefined)
+//                    iterating = params.pause === "true" ? true : false;
+
+                    function nextIteration() {
+                        frame++;
+                        if (frame % 2 === 0) {
+                            ca.render();
+                            if (iterating)
+                                ca.iterate();
+                        }
+                        window.requestAnimationFrame(nextIteration);
                     }
                 });
-                
-                var iterating = true;
-                if (params.pause !== undefined)
-                    iterating = params.pause == "true" ? true : false;
-                
-                function nextIteration() {
-                    frame++;                    
-                    if (frame % 2 === 0) {
-                        ca.render();
-                        if (iterating)
-                            ca.iterate();
-                    }
-                    window.requestAnimationFrame(nextIteration);
-                }
+
+
+//                var board = new Board(1000, 1000);
+//                
+//        
+//                var ca = new CA(document.getElementById("canvas"), 2048, 1024, 2047, 1023);
+//                var params = createParamMap();
+//                if (params.rule !== undefined)
+//                    ca.setRule(params.rule);
+//                
+//                ca.updateSize();
+//                ca.setZoom(1);
+//                ca.setCenter(1024, 512);
+//                ca.putBoard(board, 523, 10);
+//                
+
             }
-            
-            
+
+
         </script>
     </head>
     <body onload="start()">

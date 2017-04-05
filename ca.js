@@ -1,12 +1,14 @@
-function CA(canvas, bufferWidth, bufferHeight, roomWidth, roomHeight) {
+function CA(caConfig) {
+    const bufferWidth = caConfig.bufferWidth;
+    const bufferHeight = caConfig.bufferHeight;
+    const roomWidth = caConfig.roomWidth;
+    const roomHeight = caConfig.roomHeight;
+    
     const minZoom = 1 / (1 << 4);
+    var canvas;
     var zoom = 2;
-    var ruleTex;
-    var srcTex, destTex;
-    var vertices;
-    var texCoords;
-    var vertexBuffer;
-    var texCoordBuffer;
+    var srcTex, destTex, ruleTex;
+    var vertexBuffer, texCoordBuffer;
     var frameBufferSrc, frameBufferDest;
     var gl;
     var cw, ch;
@@ -15,19 +17,9 @@ function CA(canvas, bufferWidth, bufferHeight, roomWidth, roomHeight) {
     var offset = new Vec(0, 0);
     var currentProgram, drawProgram, caProgram;
     
-    canvas.addEventListener("touchstart", handleTouchstart);
-    canvas.addEventListener("touchend", handleTouchend);
-    canvas.addEventListener("touchmove", handleTouchmove);
-    canvas.addEventListener("mousemove", handle_mouse_move);
-    canvas.addEventListener("mousedown", handle_mouse_down);
-    canvas.addEventListener("mouseup", handle_mouse_drag_stop);
-    canvas.addEventListener("mouseout", handle_mouse_drag_stop);
-    canvas.addEventListener("wheel", handle_mouse_wheel);
-    
-    initGl();
-    setRule("B3/S23");
-    
     this.setRule = setRule;
+    
+    this.init = init;
 
     this.updateSize = function() {
         cw = canvas.clientWidth;
@@ -331,15 +323,17 @@ function CA(canvas, bufferWidth, bufferHeight, roomWidth, roomHeight) {
         };
     }
     
-    function initGl() {
+    function init(canvasElement) {
+        canvas = canvasElement;
+        this.updateSize();
         gl = canvas.getContext("webgl");
         drawProgram = new DrawProgram();
         caProgram = new CAProgram();
         currentProgram = drawProgram;
         currentProgram.use();
 
-        vertices = new Float32Array([0, bufferHeight, bufferWidth, bufferHeight, 0, 0, bufferWidth, bufferHeight, 0, 0, bufferWidth, 0]);
-        texCoords = new Float32Array([0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1]);
+        var vertices = new Float32Array([0, bufferHeight, bufferWidth, bufferHeight, 0, 0, bufferWidth, bufferHeight, 0, 0, bufferWidth, 0]);
+        var texCoords = new Float32Array([0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1]);
 
         vertexBuffer = gl.createBuffer();
         texCoordBuffer = gl.createBuffer();
@@ -350,6 +344,20 @@ function CA(canvas, bufferWidth, bufferHeight, roomWidth, roomHeight) {
         gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
         
         initTexture();
+        this.setRule(caConfig.rule);
+        this.setZoom(caConfig.zoom);
+        this.setCenter(...caConfig.center);
+        
+        canvas.addEventListener("touchstart", handleTouchstart);
+        canvas.addEventListener("touchend", handleTouchend);
+        canvas.addEventListener("touchmove", handleTouchmove);
+        canvas.addEventListener("mousemove", handle_mouse_move);
+        canvas.addEventListener("mousedown", handle_mouse_down);
+        canvas.addEventListener("mouseup", handle_mouse_drag_stop);
+        canvas.addEventListener("mouseout", handle_mouse_drag_stop);
+        canvas.addEventListener("wheel", handle_mouse_wheel);
+        
+        caConfig.initialState.forEach(state => this.putBoard(state.board, state.x, state.y));
     }
     
     function handle_mouse_down(event) {
@@ -449,4 +457,15 @@ function CA(canvas, bufferWidth, bufferHeight, roomWidth, roomHeight) {
         gl.bindTexture(gl.TEXTURE_2D, srcTex);
         gl.texSubImage2D(gl.TEXTURE_2D, 0, xx, bufferHeight - yy - bh, bw, bh, gl.RGB, gl.UNSIGNED_BYTE, srcBufferPixelArray);
     };
+}
+
+function CaConfig(config) {
+    this.bufferWidth = config.buffer.width;
+    this.bufferHeight = config.buffer.height;
+    this.roomWidth = config.room.width;
+    this.roomHeight = config.room.height;
+    this.rule = config.room.rule;
+    this.zoom = config.view.scale;
+    this.center = [config.view.centerX, config.view.centerY];
+    this.initialState = [];
 }
