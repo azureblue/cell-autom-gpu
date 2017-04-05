@@ -21,6 +21,23 @@
                 canvas.height = canvas.clientHeight;
             }
             
+            async function loadConfigFromURL(url) {
+                var loadUrlPromise = new Promise((resolve, reject) => {
+                    var req = new XMLHttpRequest();
+                    req.open("GET", url);
+                    req.responseType = "json";
+                    req.onload = () => {
+                        if (req.status === 200)
+                            resolve(req.responseText);
+                        else
+                            reject();
+                    };
+                    req.send();
+                });
+                var json = await loadConfigFromURL;
+                return json;
+            }
+            
             function createParamMap() {
                 var map = {};
                 var params = window.location.search.substr(1).split("&");
