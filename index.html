@@ -35,7 +35,6 @@
                 updateCanvasSize();
                 var frame = 0;
                 var board = new Board(1000, 1000);
-                var b = 0;
                 
                 board.iteratePositions((x, y) => 
                     board.set(x, y, randomBool() ? 1 : 0)
@@ -45,6 +44,7 @@
                 var params = createParamMap();
                 if (params.rule !== undefined)
                     ca.setRule(params.rule);
+                
                 ca.updateSize();
                 ca.setZoom(1);
                 ca.setCenter(1024, 512);
@@ -71,6 +71,8 @@
                 });
                 
                 var iterating = true;
+                if (params.pause !== undefined)
+                    iterating = params.pause == "true" ? true : false;
                 
                 function nextIteration() {
                     frame++;                    
