@@ -1,0 +1,50 @@
+{
+    "ca": {
+        "buffer": {
+            "width": 512,
+            "height": 512
+        },
+
+        "view": {
+            "scale": 2,
+            "center": [254, 254]
+        },
+
+        "room": {
+            "width": 254,
+            "height": 254,
+            "separate": true
+        }
+    },
+
+    "state": [
+        {
+            "room": [0, 0],
+            "rule": "B3/S23",
+            "dataset": "random254"
+        },
+        {
+            "room": [1, 0],
+            "rule": "B3678/S34678",
+            "dataset": "random254"
+        },
+        {
+            "room": [0, 1],
+            "rule": "B4678/S35678",
+            "dataset": "random254"
+        },
+        {
+            "room": [1, 1],
+            "rule": "B368/S245",
+            "dataset": "random254"
+        }
+    ],
+
+    "datasets": {    
+        "random254": {
+            "width": 254,
+            "height": 254,
+            "format": "random"
+        }
+    }
+}

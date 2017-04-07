@@ -43,16 +43,15 @@
                     loadCA(params.config).then(ca => start(ca));
                 else {
                     var caConfig = new CaConfig(1024, 1024);
-                    caConfig.rule = params.rule || "B3/S23";
-                    caConfig.boardsToLoad = [
+                    caConfig.rooms = [
                         {
-                            board: new Board(1024, 1024, new Array(1024 * 1024).fill(0).map(() => randomBool() ? 1 : 0)),
+                            rule: params.rule || "B3/S23",
+                            board: new Board(1023, 1023, new Array(1023 * 1023).fill(0).map(() => randomBool() ? 1 : 0)),
                             pos: new Vec(0, 0)
                         }
                     ];
                     var ca = new CA(caConfig);
                     start(ca);
-                    
                 }
                 
                 function start(ca) {
