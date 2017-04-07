@@ -35,7 +35,7 @@ async function createCAFromJson(configJson) {
     
     var caConfig = CaConfig.fromJsonCaConfig(config.ca);
     caConfig.rooms = rooms;
-    
+
     return new CA(caConfig);
 }
 
@@ -49,16 +49,13 @@ async function loadBoardRandom(width, height) {
 
 async function loadBoardFromBinUrl(width, height, url) {
     var buffer = await loadData(url, "arraybuffer");
-    if (buffer === undefined)
-        return undefined;
     var board = new Board(width, height);
     var ar = board.getArray();
     var byteView = new Uint8Array(buffer);
-    for (var i = 0; i < ar.length; i++) {
-        var byte = i / 8 | 0;
-        var bit = i % 8;
-        ar[i] = (byteView[byte] >> bit) & 1;
-    }
+    //assume no padding for now...
+    for (var i = 0; i < ar.length; i++)
+        ar[i] = (byteView[i / 8 | 0] >> (7 - i % 8)) & 1;
+    
     return board;
 }
 
