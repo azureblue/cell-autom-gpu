@@ -13,16 +13,31 @@
         "room": {
             "width": 256,
             "height": 256,
-            "rule": "B3/S23",
             "separate": true
         }
     },
 
     "state": [
-        { "room": [0, 0], "dataset": "random256x256" },
-        { "room": [1, 0], "dataset": "random256x256" },
-        { "room": [0, 1], "dataset": "random256x256" },
-        { "room": [1, 1], "dataset": "random256x256" }
+        {
+            "room": [0, 0],
+            "rule": "B3/S23",
+            "dataset": "random256x256"
+        },
+        {
+            "room": [1, 0],
+            "rule": "B3678/S34678",
+            "dataset": "random256x256"
+        },
+        {
+            "room": [0, 1],
+            "rule": "B4678/S35678",
+            "dataset": "random256x256"
+        },
+        {
+            "room": [1, 1],
+            "rule": "B35678/S5678",
+            "dataset": "random256x256"
+        }
     ],
 
     "datasets": {

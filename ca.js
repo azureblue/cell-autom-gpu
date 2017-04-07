@@ -3,6 +3,11 @@ function CA(caConfig) {
     const bufferHeight = caConfig.bufferHeight;
     const roomWidth = caConfig.roomWidth;
     const roomHeight = caConfig.roomHeight;
+    const roomWidthInBuff = roomWidth + 1;
+    const roomHeightInBuff = roomHeight + 1;
+    const roomsCols = (bufferWidth + roomWidthInBuff - 1) / roomWidthInBuff | 0;
+    const roomsRows = (bufferWidth + roomHeightInBuff - 1) / roomHeightInBuff | 0;
+    const ruleSizePixels = 32; 
     
     const minZoom = 1 / (1 << 4);
     var canvas;
@@ -53,7 +58,7 @@ function CA(caConfig) {
         currentProgram = caProgram;
         currentProgram.use();
         caProgram.setCASize(bufferWidth, bufferHeight);
-        caProgram.setCARoomSize(roomWidth + 1, roomHeight + 1);
+        caProgram.setCARoomSize(roomWidthInBuff, roomHeightInBuff);
         gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferDest);
         gl.viewport(0, 0, bufferWidth, bufferHeight);
         var pixXScale = 1 / bufferWidth * 2;
@@ -84,14 +89,14 @@ function CA(caConfig) {
     };
     
     function genRuleArrayPixel(ruleBLut, ruleSLut) {
-        var ar = new Uint8Array(18 * 3);
+        var ar = new Uint8Array(ruleSizePixels * 3);
         for (var i = 0; i < 9; i++) {
             ar[i * 3 + 0] = 255 * ruleBLut[i];
             ar[i * 3 + 1] = 255 * ruleBLut[i];
             ar[i * 3 + 2] = 255 * ruleBLut[i];
-            ar[(i + 9) * 3 + 0] = 255 * ruleSLut[i];
-            ar[(i + 9) * 3 + 1] = 255 * ruleSLut[i];
-            ar[(i + 9) * 3 + 2] = 255 * ruleSLut[i];            
+            ar[(i + ruleSizePixels / 2) * 3 + 0] = 255 * ruleSLut[i];
+            ar[(i + ruleSizePixels / 2) * 3 + 1] = 255 * ruleSLut[i];
+            ar[(i + ruleSizePixels / 2) * 3 + 2] = 255 * ruleSLut[i];            
         }
         return ar;
     }
@@ -104,13 +109,14 @@ function CA(caConfig) {
         return ruleLut;
     }
     
-    function setRule(rule) {
+    function setRule(rx, ry, rule) {
         if (!rule.match("B[0-9]*/S[0-9]*"))
             throw "invalid rule: " + rule;
         var ruleLuts = parseRuleToLuts(rule);
         var rulesPixels = genRuleArrayPixel(...ruleLuts);
+        var offset = ry * roomsCols * ruleSizePixels + rx * ruleSizePixels;
         gl.bindTexture(gl.TEXTURE_2D, ruleTex);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 18, 1, gl.RGB, gl.UNSIGNED_BYTE, rulesPixels);    
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, offset, 0, ruleSizePixels, 1, gl.RGB, gl.UNSIGNED_BYTE, rulesPixels);    
     };
 
     function initTexture() {
@@ -134,7 +140,7 @@ function CA(caConfig) {
         
         ruleTex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, ruleTex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 18, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, roomsCols * roomsRows * ruleSizePixels, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -242,7 +248,9 @@ function CA(caConfig) {
                 vec2 cs = vec2(1.0, 1.0) / bs;
                 vec2 bsEdge = bs - 0.5;
         
-                const float ruleTexSize = 9.0 * 2.0;
+                const float ruleUnit = 1.0 / (float(${roomsCols}) * float(${roomsCols}) * float(${ruleSizePixels}));
+                const float ruleSize = float(${ruleSizePixels});
+                const float ruleTexRowSize = float(${roomsCols}) * ruleSize;
                 
                 void main(void) {
                    float modx = mod(gl_FragCoord.x, rs.x);
@@ -251,6 +259,9 @@ function CA(caConfig) {
                        gl_FragColor = vec4(0, 0.15, 0.35, 1.0);
                        return;
                     }
+        
+                   float rx = floor(gl_FragCoord.x / rs.x);
+                   float ry = floor((bs.y - gl_FragCoord.y) / rs.y);
         
                    float adj = 0.0;
                    adj += texture2D(tex, vec2(tp.x - cs.x, tp.y - cs.y)).r;
@@ -263,9 +274,8 @@ function CA(caConfig) {
                    adj += texture2D(tex, vec2(tp.x + cs.x, tp.y + cs.y)).r;
         
                    float current = texture2D(tex, vec2(tp.x, tp.y)).r;
-                   float ruleOffset = current * 0.5;
-                   float ruleCol = texture2D(ruleTex, vec2(ruleOffset + (adj + 0.5) / ruleTexSize, 0.0)).r;
-                   //gl_FragColor = texture2D(ruleTex, vec2(1.0 / ruleTexSize * gl_FragCoord.x / 10.0, 0.0)) + (floor(gl_FragCoord.x / 10.0) / 30.0);
+                   float ruleOffset = ruleUnit * (ruleTexRowSize * ry + ruleSize * (rx + current * 0.5));
+                   float ruleCol = texture2D(ruleTex, vec2(ruleOffset + (adj + 0.5) * ruleUnit, 0.0)).r;
                    gl_FragColor = ruleCol == 1.0 ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);
                    
                 }
@@ -345,7 +355,7 @@ function CA(caConfig) {
         
         initTexture();
         this.iterate();
-        this.setRule(caConfig.rule);
+        
         this.setZoom(caConfig.zoom);
         this.setCenter(...caConfig.center);
         
@@ -358,7 +368,11 @@ function CA(caConfig) {
         canvas.addEventListener("mouseout", handle_mouse_drag_stop);
         canvas.addEventListener("wheel", handle_mouse_wheel);
         
-        caConfig.boardsToLoad.forEach(btl => this.putBoard(btl.board, ...btl.pos));
+        caConfig.rooms.forEach(room => {
+            var roomPixelPos = new Vec(...room.pos).multiply(roomWidthInBuff, roomHeightInBuff).add(1, 1);
+            this.putBoard(room.board, ...roomPixelPos);
+            this.setRule(...room.pos, room.rule);
+        });
     }
     
     function handle_mouse_down(event) {
@@ -468,8 +482,9 @@ function CaConfig(bufferWidth, bufferHeight) {
     this.rule = "B3/S23";
     this.zoom = 1;
     this.center = new Vec(bufferWidth / 2, bufferHeight / 2);
-    this.boardsToLoad = [];
+    this.rooms = [];
 }
+
 
 CaConfig.fromJsonCaConfig = function(config) {
     var caConfig = new CaConfig(config.buffer.width, config.buffer.height);

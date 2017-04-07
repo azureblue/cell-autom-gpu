@@ -18,47 +18,25 @@ async function loadCA(configUrl) {
 async function createCAFromJson(configJson) {
     
     var config = JSON.parse(configJson);
+    let datasetLoader = new DatasetLoader(config.datasets);
 
-    var datasetsBoards = {};
-    
-    for (let datasetName of Object.keys(config.datasets)) {
-        var dataset = config.datasets[datasetName];
-        var w = dataset.width;
-        var h = dataset.height;
-        var format = dataset.format;
-        //hardcoded formats for now
-        if (dataset.hasOwnProperty("url")) {
-            if (format !== 'bits')
-                throw "unsupported format for url: " + format;
-            datasetsBoards[datasetName] = await loadBoardFromBinUrl(w, h, dataset.url);
-            continue;
-        }
-        if (format === "random") {
-            datasetsBoards[datasetName] = await loadBoardRandom(w, h);
-            continue;
-        }
-        
-        throw "invalid dataset config";
-    }
-
-    var boardsToLoad = [];
-    config.state.forEach(init => {
+    var rooms = [];
+    for (let init of config.state) {
         var roomPos = new Vec(...init.room);
-        roomPos.multiply(config.ca.room.width + 1, config.ca.room.height + 1).add(1, 1);
-        var board = datasetsBoards[init.dataset];
+        var board = await datasetLoader.loadDatasetBoard(init.dataset);
         if (board === undefined)
             throw "invalid dataset: " + init.dataset;
-        boardsToLoad.push({
+        rooms.push({
             board: board,
-            pos: roomPos
+            pos: roomPos,
+            rule: init.rule
         });
-    });
+    }
     
     var caConfig = CaConfig.fromJsonCaConfig(config.ca);
-    caConfig.boardsToLoad = boardsToLoad;
-    var ca = new CA(caConfig);
-
-    return ca;
+    caConfig.rooms = rooms;
+    
+    return new CA(caConfig);
 }
 
 async function loadBoardRandom(width, height) {
@@ -82,5 +60,33 @@ async function loadBoardFromBinUrl(width, height, url) {
         ar[i] = (byteView[byte] >> bit) & 1;
     }
     return board;
+}
+
+function DatasetLoader(datasetsConfig) {
+    var datasets = {};
+    this.loadDatasetBoard = async function (datasetName) {
+        if (datasets[datasetName] === undefined)
+            datasets[datasetName] = load(datasetName);
+        
+        return await datasets[datasetName];        
+    };
+    
+    function load(datasetName) {
+        var dataset = datasetsConfig[datasetName];
+        var w = dataset.width;
+        var h = dataset.height;
+        var format = dataset.format;
+        //hardcoded formats for now
+        if (dataset.hasOwnProperty("url")) {
+            if (format !== 'bits')
+                throw "unsupported format for url: " + format;
+            return loadBoardFromBinUrl(w, h, dataset.url);
+        }
+        if (format === "random") {
+            return loadBoardRandom(w, h);
+        }
+        
+        throw "invalid dataset config";
+    };
 }
             
