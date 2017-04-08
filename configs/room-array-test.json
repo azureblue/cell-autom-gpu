@@ -1,0 +1,36 @@
+{
+    "ca": {
+        "buffer": {
+            "width": 2048,
+            "height": 2048
+        },
+
+        "view": {
+            "scale": 2,
+            "center": [254, 254]
+        },
+
+        "room": {
+            "width": 192,
+            "height": 192,
+            "separate": true
+        }
+    },
+
+    "state": {
+        "roomArray": {
+            "defaultDataset": "rand",
+            "defaultRule": "B3/S23",
+            "width": 10,
+            "height": 10
+        }
+    },
+
+    "datasets": {    
+        "rand": {
+            "width": 192,
+            "height": 192,
+            "format": "random"
+        }
+    }
+}

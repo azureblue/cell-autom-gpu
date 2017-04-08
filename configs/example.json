@@ -17,28 +17,30 @@
         }
     },
 
-    "state": [
-        {
-            "room": [0, 0],
-            "rule": "B3/S23",
-            "dataset": "random254"
-        },
-        {
-            "room": [1, 0],
-            "rule": "B3678/S34678",
-            "dataset": "random254"
-        },
-        {
-            "room": [0, 1],
-            "rule": "B4678/S35678",
-            "dataset": "random254"
-        },
-        {
-            "room": [1, 1],
-            "rule": "B368/S245",
-            "dataset": "random254"
-        }
-    ],
+    "state": {
+        "rooms": [
+            {
+                "room": [0, 0],
+                "rule": "B3/S23",
+                "dataset": "random254"
+            },
+            {
+                "room": [1, 0],
+                "rule": "B3678/S34678",
+                "dataset": "random254"
+            },
+            {
+                "room": [0, 1],
+                "rule": "B4678/S35678",
+                "dataset": "random254"
+            },
+            {
+                "room": [1, 1],
+                "rule": "B368/S245",
+                "dataset": "random254"
+            }
+        ]
+    },
 
     "datasets": {    
         "random254": {

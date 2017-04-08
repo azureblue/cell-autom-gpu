@@ -6,7 +6,7 @@ function CA(caConfig) {
     const roomWidthInBuff = roomWidth + 1;
     const roomHeightInBuff = roomHeight + 1;
     const roomsCols = (bufferWidth + roomWidthInBuff - 1) / roomWidthInBuff | 0;
-    const roomsRows = (bufferWidth + roomHeightInBuff - 1) / roomHeightInBuff | 0;
+    const roomsRows = (bufferHeight + roomHeightInBuff - 1) / roomHeightInBuff | 0;
     const ruleSizePixels = 32; 
     
     const minZoom = 1 / (1 << 4);
