@@ -1,3 +1,5 @@
+var vec = Vec.vec;
+
 function CA(caConfig) {
     const bufferWidth = caConfig.bufferWidth;
     const bufferHeight = caConfig.bufferHeight;
@@ -7,7 +9,10 @@ function CA(caConfig) {
     const roomHeightInBuff = roomHeight + 1;
     const roomsCols = (bufferWidth + roomWidthInBuff - 1) / roomWidthInBuff | 0;
     const roomsRows = (bufferHeight + roomHeightInBuff - 1) / roomHeightInBuff | 0;
-    const ruleSizePixels = 32; 
+    const ruleBaseSizePixels = 32;
+    const halfRuleSize = ruleBaseSizePixels / 2;
+    const ruleTexWidth = roundUpTo2Pow(roomsCols * halfRuleSize);
+    const ruleTexHeight =  roundUpTo2Pow(roomsRows * 2);
     
     const minZoom = 1 / (1 << 4);
     var canvas;
@@ -19,7 +24,7 @@ function CA(caConfig) {
     var cw, ch;
     var mouse_down_point, mouse_move_point, dragging = false;
     var touches = [];
-    var offset = new Vec(0, 0);
+    var offset = vec(0, 0);
     var currentProgram, drawProgram, caProgram;
     
     this.setRule = setRule;
@@ -89,22 +94,22 @@ function CA(caConfig) {
     };
     
     function genRuleArrayPixel(ruleBLut, ruleSLut) {
-        var ar = new Uint8Array(ruleSizePixels * 3);
+        var ar = new Uint8Array(ruleBaseSizePixels * 3);
         for (var i = 0; i < 9; i++) {
             ar[i * 3 + 0] = 255 * ruleBLut[i];
             ar[i * 3 + 1] = 255 * ruleBLut[i];
             ar[i * 3 + 2] = 255 * ruleBLut[i];
-            ar[(i + ruleSizePixels / 2) * 3 + 0] = 255 * ruleSLut[i];
-            ar[(i + ruleSizePixels / 2) * 3 + 1] = 255 * ruleSLut[i];
-            ar[(i + ruleSizePixels / 2) * 3 + 2] = 255 * ruleSLut[i];            
+            ar[(i + ruleBaseSizePixels / 2) * 3 + 0] = 255 * ruleSLut[i];
+            ar[(i + ruleBaseSizePixels / 2) * 3 + 1] = 255 * ruleSLut[i];
+            ar[(i + ruleBaseSizePixels / 2) * 3 + 2] = 255 * ruleSLut[i];            
         }
         return ar;
     }
     
     function parseRuleToLuts(rule) {
         var ruleLut = [new Uint8Array(9), new Uint8Array(9)];
-        rule.split("/").forEach((subRule, idx) => 
-            subRule.substring(1).split("").forEach(ch => ruleLut[idx][parseInt(ch)] = 1)
+        rule.split("/").forEach((subRule, half) => 
+            subRule.substring(1).split("").forEach(ch => ruleLut[half][parseInt(ch)] = 1)
         );
         return ruleLut;
     }
@@ -114,9 +119,9 @@ function CA(caConfig) {
             throw "invalid rule: " + rule;
         var ruleLuts = parseRuleToLuts(rule);
         var rulesPixels = genRuleArrayPixel(...ruleLuts);
-        var offset = ry * roomsCols * ruleSizePixels + rx * ruleSizePixels;
+        var offset = rx * halfRuleSize;
         gl.bindTexture(gl.TEXTURE_2D, ruleTex);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, offset, 0, ruleSizePixels, 1, gl.RGB, gl.UNSIGNED_BYTE, rulesPixels);    
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, offset, ry * 2, halfRuleSize, 2, gl.RGB, gl.UNSIGNED_BYTE, rulesPixels);    
     };
 
     function initTexture() {
@@ -140,7 +145,7 @@ function CA(caConfig) {
         
         ruleTex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, ruleTex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, roomsCols * roomsRows * ruleSizePixels, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, ruleTexWidth, ruleTexHeight, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -248,9 +253,10 @@ function CA(caConfig) {
                 vec2 cs = vec2(1.0, 1.0) / bs;
                 vec2 bsEdge = bs - 0.5;
         
-                const float ruleUnit = 1.0 / (float(${roomsCols}) * float(${roomsCols}) * float(${ruleSizePixels}));
-                const float ruleSize = float(${ruleSizePixels});
-                const float ruleTexRowSize = float(${roomsCols}) * ruleSize;
+                const vec2 rulePixUnit = 
+                    vec2(1.0 / float(${ruleTexWidth}), 1.0 / float(${ruleTexHeight}));
+        
+                const float halfRuleSize = float(${halfRuleSize});
                 
                 void main(void) {
                    float modx = mod(gl_FragCoord.x, rs.x);
@@ -274,8 +280,8 @@ function CA(caConfig) {
                    adj += texture2D(tex, vec2(tp.x + cs.x, tp.y + cs.y)).r;
         
                    float current = texture2D(tex, vec2(tp.x, tp.y)).r;
-                   float ruleOffset = ruleUnit * (ruleTexRowSize * ry + ruleSize * (rx + current * 0.5));
-                   float ruleCol = texture2D(ruleTex, vec2(ruleOffset + (adj + 0.5) * ruleUnit, 0.0)).r;
+                   vec2 rulePos = vec2(halfRuleSize * rx + adj + 0.5, ry * 2.0 + current + 0.5); 
+                   float ruleCol = texture2D(ruleTex, rulePos * rulePixUnit).r;
                    gl_FragColor = ruleCol == 1.0 ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);
                    
                 }
@@ -369,7 +375,7 @@ function CA(caConfig) {
         canvas.addEventListener("wheel", handle_mouse_wheel);
         
         caConfig.rooms.forEach(room => {
-            var roomPixelPos = new Vec(...room.pos).multiply(roomWidthInBuff, roomHeightInBuff).add(1, 1);
+            var roomPixelPos = vec(...room.pos).multiply(roomWidthInBuff, roomHeightInBuff).add(1, 1);
             this.putBoard(room.board, ...roomPixelPos);
             this.setRule(...room.pos, room.rule);
         });
@@ -431,7 +437,7 @@ function CA(caConfig) {
         evt.preventDefault();
         forEachTouch(evt.changedTouches, te =>
             touches.push({
-                lastPos: new Vec(te.clientX, te.clientY),
+                lastPos: vec(te.clientX, te.clientY),
                 event: te
             })
         );
@@ -440,7 +446,7 @@ function CA(caConfig) {
     function handleTouchmove(evt) {
         evt.preventDefault();
         if (touches.length === 1) {
-            var currentPos = new Vec(evt.changedTouches[0].clientX, evt.changedTouches[0].clientY);
+            var currentPos = vec(evt.changedTouches[0].clientX, evt.changedTouches[0].clientY);
             var dxy = currentPos.vector_to(touches[0].lastPos);
             touches[0].lastPos = currentPos;
             offset.move(dxy);
@@ -481,7 +487,7 @@ function CaConfig(bufferWidth, bufferHeight) {
     this.roomHeight = bufferHeight;
     this.rule = "B3/S23";
     this.zoom = 1;
-    this.center = new Vec(bufferWidth / 2, bufferHeight / 2);
+    this.center = vec(bufferWidth / 2, bufferHeight / 2);
     this.rooms = [];
 }
 
@@ -492,6 +498,6 @@ CaConfig.fromJsonCaConfig = function(config) {
     if (config.room.height) caConfig.roomHeight = config.room.height;
     if (config.room.rule) caConfig.rule = config.room.rule;
     if (config.view.scale) caConfig.zoom = config.view.scale;
-    if (config.view.center) caConfig.center = new Vec(...config.view.center);
+    if (config.view.center) caConfig.center = vec(...config.view.center);
     return caConfig;
 };

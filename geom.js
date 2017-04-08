@@ -7,6 +7,10 @@ Vec.prototype.vector_to = function (vec) {
     return new Vec(vec.x - this.x, vec.y - this.y);
 };
 
+Vec.vec = function(x, y) {
+    return new Vec(x, y);
+};
+
 Vec.prototype.set = function (x, y) {
     this.x = x;
     this.y = y;
