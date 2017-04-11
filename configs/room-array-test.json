@@ -12,8 +12,7 @@
 
         "room": {
             "width": 192,
-            "height": 192,
-            "separate": true
+            "height": 192
         }
     },
 
@@ -30,7 +29,7 @@
         "rand": {
             "width": 192,
             "height": 192,
-            "format": "random"
+            "type": "random"
         }
     }
 }

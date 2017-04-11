@@ -1,0 +1,41 @@
+{
+    "ca": {
+        "buffer": {
+            "width": 256,
+            "height": 256
+        },
+
+        "view": {
+            "scale": 8,
+            "center": [130, 127]
+        },
+
+        "room": {
+            "width": 254,
+            "height": 254,
+            "separate": true
+        }
+    },
+
+    "state": {
+        "rooms": [
+            {
+                "pos": [0, 0],
+                "rule": "B3/S23",
+                "dataset": "life105_1"
+            }
+        ]
+    },
+
+    "datasets": {    
+        "life105_1": {
+            "width": 254,
+            "height": 254,
+            "type": "data",
+            "src": {
+                "format": "life105",
+                "url": "datasets/GUN104.LIF"
+            }
+        }
+    }
+}

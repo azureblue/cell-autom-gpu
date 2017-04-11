@@ -23,7 +23,7 @@ async function createCAFromJson(configJson) {
 
     if (config.state.rooms)
         for (let init of config.state.rooms) {
-            var roomPos = new Vec(...init.room);
+            var roomPos = new Vec(...init.pos);
             var board = await datasetLoader.loadDatasetBoard(init.dataset);
             if (board === undefined)
                 throw "invalid dataset: " + init.dataset;
@@ -54,8 +54,7 @@ async function createCAFromJson(configJson) {
     return new CA(caConfig);
 }
 
-async function loadBoardRandom(width, height) {
-    var board = new Board(width, height);
+async function loadBoardRandom(board) {
     var ar = board.getArray();
     for (var i = 0; i < ar.length; i++)
         ar[i] = randomBool() ? 1 : 0;
@@ -74,32 +73,114 @@ async function loadBoardFromBinUrl(width, height, url) {
     return board;
 }
 
+
+
 function DatasetLoader(datasetsConfig) {
+    var dataLoader = new DataLoader();
     var datasets = {};
     this.loadDatasetBoard = async function (datasetName) {
         if (datasets[datasetName] === undefined)
-            datasets[datasetName] = load(datasetName);
+            datasets[datasetName] = await load(datasetName);
 
-        return await datasets[datasetName];
+        return datasets[datasetName];
     };
 
-    function load(datasetName) {
-        var dataset = datasetsConfig[datasetName];
-        var w = dataset.width;
-        var h = dataset.height;
-        var format = dataset.format;
-        //hardcoded formats for now
-        if (dataset.hasOwnProperty("url")) {
-            if (format !== 'bits')
-                throw "unsupported format for url: " + format;
-            return loadBoardFromBinUrl(w, h, dataset.url);
+    async function load(datasetName) {
+        var dataset = mapFields(datasetsConfig[datasetName]);
+        var board = new Board(dataset.get("width"), dataset.get("height"));
+        var type = dataset.get("type");
+        if (type === "data") {
+            await dataLoader.loadBoard(dataset.get("src"), board);
+            return board;
         }
-        if (format === "random") {
-            return loadBoardRandom(w, h);
+        if (type === "random") {
+            return loadBoardRandom(board);
         }
 
         throw "invalid dataset config";
     }
+}
+
+function DataLoader() {
+    var loadersConfig = {
+        bits: {
+            dataType: "binary",
+            initializer: BitsInitializer
+        },
+        life105: {
+            dataType: "text",
+            initializer: Life105Initializer
+        }
+    };
+
+    this.loadBoard = async function(dataConfing, board) {
+        var dataFields = mapFields(dataConfing);
+        var format = dataFields.get("format");
+        var init = createInitializer(format);
+        
+        var dataResource;
+        if (isDefiened(dataConfing["url"]))
+            dataResource = new UrlDataLoader(dataConfing["url"], loadersConfig[format].dataType);
+        else if (isDefiened(dataConfing["text"]))
+            dataResource = {load: () => dataConfing["text"]};
+        else if (isDefiened(dataConfing["textLines"]))
+            dataResource = {load: () => dataConfing["textLines"].map(line => line.trim()).join('\n')};
+        if (!isDefiened(dataResource))
+            throw "invalid data config: " + JSON.stringify(dataConfing);
+        
+        init.initBoard(board, await dataResource.load());
+    };
+    
+    function createInitializer(name) {
+        return new (loadersConfig[name].initializer)();
+    }
+}
+
+function UrlDataLoader(url, dataType) {
+    var responseTypeMap = {
+        binary: "arraybuffer",
+        text: "text"
+    };
+    
+    this.load = async function() {
+        return await loadData(url, responseTypeMap[dataType]);
+    };
+}
+
+function Life105Initializer() {
+    this.initBoard = function(board, text) {
+        var posRegex = /(-?\d+)\s*(-?\d+)/;
+        var middlePos = new Vec(board.getWidth() / 2 | 0, board.getHeight() / 2 | 0);
+        var currentPos = new Vec(...middlePos);
+        text.split('\n').map(line => line.trim()).forEach(line => {
+            line = line.toLowerCase();
+            if (line.startsWith("#p")) {
+                var match = posRegex.exec(line);
+                currentPos = new Vec(...middlePos).move(new Vec(parseInt(match[1]), parseInt(match[2])));
+                return;
+            }
+            if (line.startsWith("#")) {
+                console.warn("ignoring: " + line);
+                return;
+            }
+            if (line.length === 0)
+                return;
+            if (!/[\*\.]/.test(line))
+                throw "invalid line: " + line;
+            line.split("").forEach((ch, x) => board.set(currentPos.x + x, currentPos.y, ch === '*' ? 1 : 0));
+            currentPos.y++;
+        });
+    };
+}
+
+function BitsInitializer() {
+    this.initBoard = function(board, buffer) {
+        var ar = board.getArray();
+        var byteView = new Uint8Array(buffer);
+        //assume no padding for now...
+        for (var i = 0; i < ar.length; i++)
+        ar[i] = (byteView[i / 8 | 0] >> (7 - i % 8)) & 1;
+    };
 }
 
 function mapFields(obj) {

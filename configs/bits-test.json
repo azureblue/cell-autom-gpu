@@ -12,30 +12,29 @@
 
         "room": {
             "width": 240,
-            "height": 238,
-            "separate": true
+            "height": 238
         }
     },
 
     "state": {
         "rooms": [
             {
-                "room": [0, 0],
+                "pos": [0, 0],
                 "rule": "B3/S23",
                 "dataset": "bits0"
             },
             {
-                "room": [1, 0],
+                "pos": [1, 0],
                 "rule": "B3678/S34678",
                 "dataset": "bits0"
             },
             {
-                "room": [0, 1],
+                "pos": [0, 1],
                 "rule": "B4678/S35678",
                 "dataset": "bits0"
             },
             {
-                "room": [1, 1],
+                "pos": [1, 1],
                 "rule": "B368/S245",
                 "dataset": "bits0"
             }
@@ -46,8 +45,11 @@
         "bits0": {
             "width": 256,
             "height": 238,
-            "format": "bits",
-            "url": "datasets/bits256x238.bits"
+            "type": "data",
+            "src": {
+                "url": "datasets/bits256x238.bits",
+                "format": "bits"
+            }
         }
     }
 }
