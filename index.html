@@ -19,7 +19,7 @@
             function getCanvas() {
                 return document.getElementById("canvas");
             }
-            
+
             function createParamMap() {
                 var map = {};
                 var params = window.location.search.substr(1).split("&");
@@ -27,9 +27,10 @@
                     var kv = par.split("=");
                     map[kv[0]] = kv[1];
                 });
-                return map;  
-            };
-            
+                return map;
+            }
+            ;
+
             function updateCanvasSize() {
                 var canvas = getCanvas();
                 canvas.width = canvas.clientWidth;
@@ -53,18 +54,18 @@
                     var ca = new CA(caConfig);
                     start(ca);
                 }
-                
+
                 function start(ca) {
                     ca.init(getCanvas());
                     nextIteration();
-                    
+
                     window.addEventListener("resize", resizeCallback);
 
                     function resizeCallback() {
                         updateCanvasSize();
                         ca.updateSize();
                     }
-                    
+
                     window.addEventListener("keydown", function (evt) {
                         switch (evt.key) {
                             case " ":
@@ -76,19 +77,21 @@
                         }
                     });
                     var frame = 0;
+                    var gpf = isDefiened(params.gpf) ? parseInt(params.gpf) : 1;
+                    
 
-                    var iterating = (params.pause == "true") ? false : true;
+                    var iterating = (params.pause === "true") ? false : true;
 //                if (params.pause !== undefined)
 //                    iterating = params.pause === "true" ? true : false;
-
+                    
                     function nextIteration() {
                         frame++;
-                        if (frame % 2 === 0) {
-                            ca.render();
-                            if (iterating)
+                        ca.render();
+                        if (iterating) {
+                            for (var i = 0; i < gpf; i++)
                                 ca.iterate();
                         }
-                        window.requestAnimationFrame(nextIteration);
+                        requestAnimationFrame(nextIteration);
                     }
                 }
 

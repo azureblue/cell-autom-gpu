@@ -34,18 +34,14 @@ function CA(caConfig) {
     this.updateSize = function() {
         cw = canvas.clientWidth;
         ch = canvas.clientHeight;
+        resetProgram();
     };
     
     this.render = function() {
-        currentProgram = drawProgram;
-        currentProgram.use();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.viewport(0, 0, cw, ch);
+        prepareDrawing();
+        gl.clear(gl.COLOR_BUFFER_BIT);
         var pixXScale = 1 / cw * 2;
         var pixYScale = 1 / ch * 2;
-        currentProgram.scale(pixXScale * zoom, -pixYScale * zoom);
-        gl.clearColor(0.0, 0.0, 0.0, 1);
-        gl.clear(gl.COLOR_BUFFER_BIT);
         currentProgram.translate(-1 - offset.x * pixXScale, 1 + offset.y * pixYScale);       
         drawTex(srcTex);
     };
@@ -57,39 +53,71 @@ function CA(caConfig) {
     
     this.setZoom = function(zo) {
         zoom = Math.round(zo);
+        resetProgram();
     };
-
+    
+    this.flushAndFinish = () => {gl.flush(); gl.finish();};
+    
     this.iterate = function() {
+        prepareIteration();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferDest);
+        drawTex(srcTex);
+
+        [srcTex, destTex] = [destTex, srcTex];
+        [frameBufferSrc, frameBufferDest] = [frameBufferDest, frameBufferSrc];
+    };
+    
+    function prepareIteration() {
+        if (currentProgram === caProgram)
+            return;
         currentProgram = caProgram;
         currentProgram.use();
         caProgram.setCASize(bufferWidth, bufferHeight);
         caProgram.setCARoomSize(roomWidthInBuff, roomHeightInBuff);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferDest);
         gl.viewport(0, 0, bufferWidth, bufferHeight);
         var pixXScale = 1 / bufferWidth * 2;
         var pixYScale = 1 / bufferHeight * 2;
         currentProgram.scale(pixXScale, -pixYScale);
         gl.clearColor(0.0, 0.0, 0.0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
-        currentProgram.translate(-1, 1);
-        
+        currentProgram.translate(-1, 1);        
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, ruleTex);
-        gl.uniform1i(currentProgram.ruleTexSamplerUnif, 1);   
-        drawTex(srcTex);
-        
-        [srcTex, destTex] = [destTex, srcTex];
-        [frameBufferSrc, frameBufferDest] = [frameBufferDest, frameBufferSrc];
-    };
+        gl.uniform1i(currentProgram.ruleTexSamplerUnif, 1);         
+        prepareCommon();
+    }
     
-    function drawTex(tex) {
+    function resetProgram() {
+        currentProgram = null;
+    }
+    
+    function prepareDrawing() {
+        if (currentProgram === drawProgram)
+            return;
+        currentProgram = drawProgram;
+        currentProgram.use();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, cw, ch);
+        gl.clearColor(0.0, 0.0, 0.0, 1);
+
+        var pixXScale = 1 / cw * 2;
+        var pixYScale = 1 / ch * 2;
+        currentProgram.scale(pixXScale * zoom, -pixYScale * zoom);
+        prepareCommon();
+    }
+    
+    function prepareCommon() {
         gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
         gl.vertexAttribPointer(currentProgram.posAttr, 2, gl.FLOAT, false, 0, 0);
         gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
         gl.vertexAttribPointer(currentProgram.texCordAttr, 2, gl.FLOAT, false, 0, 0);        
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.uniform1i(currentProgram.texSamplerUnif, 0);        
+        gl.activeTexture(gl.TEXTURE0);
+    }
+    
+    
+    function drawTex(tex) {
+        gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
     };
     
@@ -358,6 +386,7 @@ function CA(caConfig) {
         gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
         gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+        gl.disable(gl.DEPTH_TEST);
         
         initTexture();
         this.iterate();
@@ -426,6 +455,7 @@ function CA(caConfig) {
         let yo = offset.y + mousePos.y;
         offset.x += Math.round(xo * zoom / oldTileSize - xo);
         offset.y += Math.round(yo * zoom / oldTileSize - yo);
+        resetProgram();
     }
     
     function forEachTouch(touchList, callback) {
