@@ -12,8 +12,8 @@ function CA(caConfig) {
     const ruleBaseSizePixels = 32;
     const halfRuleSize = ruleBaseSizePixels / 2;
     const ruleTexWidth = roundUpTo2Pow(roomsCols * halfRuleSize);
-    const ruleTexHeight =  roundUpTo2Pow(roomsRows * 2);
-    
+    const ruleTexHeight = roundUpTo2Pow(roomsRows * 2);
+
     const minZoom = 1 / (1 << 4);
     var canvas;
     var zoom = 2;
@@ -25,102 +25,101 @@ function CA(caConfig) {
     var mouse_down_point, mouse_move_point, dragging = false;
     var touches = [];
     var offset = vec(0, 0);
-    var currentProgram, drawProgram, caProgram;
-    
+    var program, renderProgram, caProgram;
+
     this.setRule = setRule;
-    
+
     this.init = init;
 
-    this.updateSize = function() {
+    this.updateSize = function () {
         cw = canvas.clientWidth;
         ch = canvas.clientHeight;
         resetProgram();
     };
-    
-    this.render = function() {
-        prepareDrawing();
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        var pixXScale = 1 / cw * 2;
-        var pixYScale = 1 / ch * 2;
-        currentProgram.translate(-1 - offset.x * pixXScale, 1 + offset.y * pixYScale);       
-        drawTex(srcTex);
-    };
-    
-    this.setCenter = function(x, y) {
+
+    this.setCenter = function (x, y) {
         offset.x = x * zoom - cw / 2;
         offset.y = y * zoom - ch / 2;
     };
-    
-    this.setZoom = function(zo) {
+
+    this.setZoom = function (zo) {
         zoom = Math.round(zo);
         resetProgram();
     };
-    
-    this.flushAndFinish = () => {gl.flush(); gl.finish();};
-    
-    this.iterate = function() {
-        prepareIteration();
+
+    this.flushAndFinish = () => {
+        gl.flush();
+        gl.finish();
+    };
+
+    this.iterate = function () {
         gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferDest);
+        prepareIteration();
         drawTex(srcTex);
 
         [srcTex, destTex] = [destTex, srcTex];
         [frameBufferSrc, frameBufferDest] = [frameBufferDest, frameBufferSrc];
     };
-    
+
     function prepareIteration() {
-        if (currentProgram === caProgram)
+        if (program === caProgram)
             return;
-        currentProgram = caProgram;
-        currentProgram.use();
-        caProgram.setCASize(bufferWidth, bufferHeight);
-        caProgram.setCARoomSize(roomWidthInBuff, roomHeightInBuff);
+        program = caProgram;
+        program.use();
         gl.viewport(0, 0, bufferWidth, bufferHeight);
-        var pixXScale = 1 / bufferWidth * 2;
-        var pixYScale = 1 / bufferHeight * 2;
-        currentProgram.scale(pixXScale, -pixYScale);
         gl.clearColor(0.0, 0.0, 0.0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
-        currentProgram.translate(-1, 1);        
+        var pixXScale = 1 / bufferWidth * 2;
+        var pixYScale = 1 / bufferHeight * 2;
+        program.uniform("bs", bufferWidth, bufferHeight);
+        program.uniform("rs", roomWidthInBuff, roomHeightInBuff);
+        program.uniform("scale", pixXScale, -pixYScale);
+        program.uniform("translation", -1, 1);
+        program.uniform("ruleTex", 1);
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, ruleTex);
-        gl.uniform1i(currentProgram.ruleTexSamplerUnif, 1);         
         prepareCommon();
     }
-    
+
     function resetProgram() {
-        currentProgram = null;
+        program = null;
     }
     
-    function prepareDrawing() {
-        if (currentProgram === drawProgram)
+    this.render = function () {
+        prepareRendering();
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        var pixXScale = 1 / cw * 2;
+        var pixYScale = 1 / ch * 2;
+        program.uniform("translation", -1 - offset.x * pixXScale, 1 + offset.y * pixYScale);
+        drawTex(srcTex);
+    };
+
+    function prepareRendering() {
+        if (program === renderProgram)
             return;
-        currentProgram = drawProgram;
-        currentProgram.use();
+        program = renderProgram;
+        program.use();        
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, cw, ch);
         gl.clearColor(0.0, 0.0, 0.0, 1);
-
         var pixXScale = 1 / cw * 2;
-        var pixYScale = 1 / ch * 2;
-        currentProgram.scale(pixXScale * zoom, -pixYScale * zoom);
+        var pixYScale = 1 / ch * 2;        
+        program.uniform("scale", pixXScale * zoom, -pixYScale * zoom);
         prepareCommon();
     }
-    
+
     function prepareCommon() {
-        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-        gl.vertexAttribPointer(currentProgram.posAttr, 2, gl.FLOAT, false, 0, 0);
-        gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-        gl.vertexAttribPointer(currentProgram.texCordAttr, 2, gl.FLOAT, false, 0, 0);        
-        gl.uniform1i(currentProgram.texSamplerUnif, 0);        
+        program.attribute("pos", vertexBuffer, 2, gl.FLOAT, false, 0, 0);
+        program.attribute("texPos", texCoordBuffer, 2, gl.FLOAT, false, 0, 0);
+        program.uniform("tex", 0);
         gl.activeTexture(gl.TEXTURE0);
     }
-    
     
     function drawTex(tex) {
         gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
-    };
-    
+    }
+
     function genRuleArrayPixel(ruleBLut, ruleSLut) {
         var ar = new Uint8Array(ruleBaseSizePixels * 3);
         for (var i = 0; i < 9; i++) {
@@ -129,19 +128,19 @@ function CA(caConfig) {
             ar[i * 3 + 2] = 255 * ruleBLut[i];
             ar[(i + ruleBaseSizePixels / 2) * 3 + 0] = 255 * ruleSLut[i];
             ar[(i + ruleBaseSizePixels / 2) * 3 + 1] = 255 * ruleSLut[i];
-            ar[(i + ruleBaseSizePixels / 2) * 3 + 2] = 255 * ruleSLut[i];            
+            ar[(i + ruleBaseSizePixels / 2) * 3 + 2] = 255 * ruleSLut[i];
         }
         return ar;
     }
-    
+
     function parseRuleToLuts(rule) {
         var ruleLut = [new Uint8Array(9), new Uint8Array(9)];
-        rule.split("/").forEach((subRule, half) => 
+        rule.split("/").forEach((subRule, half) =>
             subRule.substring(1).split("").forEach(ch => ruleLut[half][parseInt(ch)] = 1)
         );
         return ruleLut;
     }
-    
+
     function setRule(rx, ry, rule) {
         if (!rule.match("B[0-9]*/S[0-9]*"))
             throw "invalid rule: " + rule;
@@ -149,10 +148,10 @@ function CA(caConfig) {
         var rulesPixels = genRuleArrayPixel(...ruleLuts);
         var offset = rx * halfRuleSize;
         gl.bindTexture(gl.TEXTURE_2D, ruleTex);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, offset, ry * 2, halfRuleSize, 2, gl.RGB, gl.UNSIGNED_BYTE, rulesPixels);    
-    };
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, offset, ry * 2, halfRuleSize, 2, gl.RGB, gl.UNSIGNED_BYTE, rulesPixels);
+    }
 
-    function initTexture() {
+    function initTextures() {
         var srcBufferPixelArray = new Uint8Array(bufferWidth * bufferHeight * 3);
 
         srcTex = gl.createTexture();
@@ -162,7 +161,7 @@ function CA(caConfig) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        
+
         destTex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, destTex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, bufferWidth, bufferHeight, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
@@ -170,7 +169,7 @@ function CA(caConfig) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        
+
         ruleTex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, ruleTex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, ruleTexWidth, ruleTexHeight, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
@@ -178,94 +177,59 @@ function CA(caConfig) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        
+
         frameBufferDest = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferDest);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, destTex, 0);
-        
+
         frameBufferSrc = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferSrc);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, srcTex, 0);
         gl.bindTexture(gl.TEXTURE_2D, srcTex);
         gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, bufferWidth, bufferHeight, gl.RGB, gl.UNSIGNED_BYTE, srcBufferPixelArray);
     }
-    
-    function DrawProgram() {
+
+    function createRenderProgram() {
         var vertexShaderSrc = `
-                attribute vec3 pos;
-                attribute vec2 aTexPos;
-                uniform mat4 scale;
-                uniform vec4 translation;
+                attribute vec2 pos;
+                attribute vec2 texPos;
+                uniform vec2 scale;
+                uniform vec2 translation;
                 varying vec2 vTexPos;
         
                 void main(void) {
-                   gl_Position = scale * vec4(pos, 1) + translation;
-                   vTexPos = aTexPos;
+                   gl_Position = vec4(scale * pos + translation, 0, 1);
+                   vTexPos = texPos;
                 }
         `;
 
         var fragmentShaderSrc = `
                 precision mediump float;
-                uniform sampler2D uSampler;
+                uniform sampler2D tex;
                 varying vec2 vTexPos; 
         
                 void main(void) {
-                   gl_FragColor = texture2D(uSampler, vTexPos);        
+                   gl_FragColor = texture2D(tex, vTexPos);        
                 }
         `;
-        
-        var vertexShader = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderSource(vertexShader, vertexShaderSrc);
-        gl.compileShader(vertexShader);
 
-        var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(fragmentShader, fragmentShaderSrc);
-        gl.compileShader(fragmentShader);
-        
-        var drawProgram = gl.createProgram();
-        gl.attachShader(drawProgram, vertexShader);
-        gl.attachShader(drawProgram, fragmentShader);
-        gl.linkProgram(drawProgram);
-        
-        var translation = gl.getUniformLocation(drawProgram, "translation");
-        var scale = gl.getUniformLocation(drawProgram, "scale");
-
-        this.posAttr = gl.getAttribLocation(drawProgram, "pos");
-        this.texCordAttr = gl.getAttribLocation(drawProgram, "aTexPos");
-        this.texSamplerUnif = gl.getUniformLocation(drawProgram, "uSampler");
-        gl.enableVertexAttribArray(this.posAttr);
-        gl.enableVertexAttribArray(this.texCordAttr);
-        
-        this.translate = function (x, y) {
-            gl.uniform4f(translation, x, y, 0, 0);
-        };
-        
-        this.scale = function (scx, scy) {
-            gl.uniformMatrix4fv(scale, false, new Float32Array([
-                scx, 0, 0, 0,
-                0, scy, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1
-            ]));
-        };
-        
-        this.use = function() {
-             gl.useProgram(drawProgram);
-        };
+        var program = Program.create(vertexShaderSrc, fragmentShaderSrc, gl);
+        program.enableAttribute("pos");
+        program.enableAttribute("texPos");
+        return program;
     }
     
-    
-    function CAProgram() {
+    function createCaProgram() {
         var vertexShaderSrc = `
-                attribute vec3 pos;
-                attribute vec2 aTexPos;
-                uniform mat4 scale;
-                uniform vec4 translation;
+                attribute vec2 pos;
+                attribute vec2 texPos;
+                uniform vec2 scale;
+                uniform vec2 translation;
                 varying vec2 tp;
         
                 void main(void) {
-                   gl_Position = scale * vec4(pos, 1) + translation;
-                   tp = aTexPos;
+                   gl_Position = vec4(scale * pos + translation, 0, 1);
+                   tp = texPos;
                 }
         `;
 
@@ -314,67 +278,19 @@ function CA(caConfig) {
                    
                 }
         `;
-        
-        var vertexShader = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderSource(vertexShader, vertexShaderSrc);
-        gl.compileShader(vertexShader);
 
-        var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(fragmentShader, fragmentShaderSrc);
-        gl.compileShader(fragmentShader);
-        
-        var drawProgram = gl.createProgram();
-        gl.attachShader(drawProgram, vertexShader);
-        gl.attachShader(drawProgram, fragmentShader);
-        gl.linkProgram(drawProgram);
-        
-        this.posAttr = gl.getAttribLocation(drawProgram, "pos");
-        this.texCordAttr = gl.getAttribLocation(drawProgram, "aTexPos");
-        gl.enableVertexAttribArray(this.posAttr);
-        gl.enableVertexAttribArray(this.texCordAttr);
-        
-        var translation = gl.getUniformLocation(drawProgram, "translation");
-        var scale = gl.getUniformLocation(drawProgram, "scale");
-        var buffSize = gl.getUniformLocation(drawProgram, "bs");
-        var roomSize = gl.getUniformLocation(drawProgram, "rs");
-
-        this.texSamplerUnif = gl.getUniformLocation(drawProgram, "tex");
-        this.ruleTexSamplerUnif = gl.getUniformLocation(drawProgram, "ruleTex");
-        
-        this.translate = function (x, y) {
-            gl.uniform4f(translation, x, y, 0, 0);
-        };
-        
-        this.scale = function (scx, scy) {
-            gl.uniformMatrix4fv(scale, false, new Float32Array([
-                scx, 0, 0, 0,
-                0, scy, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1
-            ]));
-        };
-        
-        this.setCASize = function (width, height) {
-            gl.uniform2f(buffSize, width, height);
-        };
-        
-        this.setCARoomSize = function (width, height) {
-            gl.uniform2f(roomSize, width, height);
-        };
-        
-        this.use = function() {
-             gl.useProgram(drawProgram);
-        };
+        var program = Program.create(vertexShaderSrc, fragmentShaderSrc, gl);
+        program.enableAttribute("pos");
+        program.enableAttribute("texPos");
+        return program;
     }
-    
+
     function init(canvasElement) {
         canvas = canvasElement;
         this.updateSize();
         gl = canvas.getContext("webgl");
-        drawProgram = new DrawProgram();
-        caProgram = new CAProgram();
-        currentProgram = drawProgram;
-        currentProgram.use();
+        renderProgram = createRenderProgram();
+        caProgram = createCaProgram();
 
         var vertices = new Float32Array([0, bufferHeight, bufferWidth, bufferHeight, 0, 0, bufferWidth, bufferHeight, 0, 0, bufferWidth, 0]);
         var texCoords = new Float32Array([0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1]);
@@ -387,13 +303,12 @@ function CA(caConfig) {
         gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
         gl.disable(gl.DEPTH_TEST);
-        
-        initTexture();
-        this.iterate();
-        
+
+        initTextures();
+
         this.setZoom(caConfig.zoom);
         this.setCenter(...caConfig.center);
-        
+
         canvas.addEventListener("touchstart", handleTouchstart);
         canvas.addEventListener("touchend", handleTouchend);
         canvas.addEventListener("touchmove", handleTouchmove);
@@ -402,14 +317,14 @@ function CA(caConfig) {
         canvas.addEventListener("mouseup", handle_mouse_drag_stop);
         canvas.addEventListener("mouseout", handle_mouse_drag_stop);
         canvas.addEventListener("wheel", handle_mouse_wheel);
-        
+
         caConfig.rooms.forEach(room => {
             var roomPixelPos = vec(...room.pos).multiply(roomWidthInBuff, roomHeightInBuff).add(1, 1);
             this.putBoard(room.board, ...roomPixelPos);
             this.setRule(...room.pos, room.rule);
         });
     }
-    
+
     function handle_mouse_down(event) {
         if (event.button === 2) {
             event.preventDefault();
@@ -425,7 +340,7 @@ function CA(caConfig) {
     function handle_mouse_drag_stop(event) {
         if (!dragging)
             return;
-        
+
         dragging = false;
     }
 
@@ -440,7 +355,7 @@ function CA(caConfig) {
 
         mouse_move_point = temp_mouse_move_point;
     }
-    
+
     function handle_mouse_wheel(event) {
         var nz = ((event.deltaY < 0) ? zoom * 2 : zoom / 2);
         changeZoom(nz, Vec.from_event(event));
@@ -457,12 +372,12 @@ function CA(caConfig) {
         offset.y += Math.round(yo * zoom / oldTileSize - yo);
         resetProgram();
     }
-    
+
     function forEachTouch(touchList, callback) {
         for (var i = 0; i < touchList.length; i++)
             callback(touchList.item(i));
-    } 
-    
+    }
+
     function handleTouchstart(evt) {
         evt.preventDefault();
         forEachTouch(evt.changedTouches, te =>
@@ -488,7 +403,7 @@ function CA(caConfig) {
             touches = touches.filter(tc => tc.event.identifier !== te.identifier)
         );
     }
-    
+
     this.putBoard = function (board, xx, yy) {
         var bw = board.getWidth();
         var bh = board.getHeight();
@@ -499,8 +414,8 @@ function CA(caConfig) {
         var rowSize = Math.floor((bw * pixelSize + alignment - 1) / alignment) * alignment;
         var srcBufferPixelArray = new Uint8Array(rowSize * bh);
         board.iteratePositions((x, y, v) => {
-            var idx = ((bh - y - 1) * rowSize + x * pixelSize) ;
-            var color = v === 0 ? black : white;            
+            var idx = ((bh - y - 1) * rowSize + x * pixelSize);
+            var color = v === 0 ? black : white;
             srcBufferPixelArray[idx + 0] = color.r;
             srcBufferPixelArray[idx + 1] = color.g;
             srcBufferPixelArray[idx + 2] = color.b;
@@ -522,12 +437,17 @@ function CaConfig(bufferWidth, bufferHeight) {
 }
 
 
-CaConfig.fromJsonCaConfig = function(config) {
+CaConfig.fromJsonCaConfig = function (config) {
     var caConfig = new CaConfig(config.buffer.width, config.buffer.height);
-    if (config.room.width) caConfig.roomWidth = config.room.width;
-    if (config.room.height) caConfig.roomHeight = config.room.height;
-    if (config.room.rule) caConfig.rule = config.room.rule;
-    if (config.view.scale) caConfig.zoom = config.view.scale;
-    if (config.view.center) caConfig.center = vec(...config.view.center);
+    if (config.room.width)
+        caConfig.roomWidth = config.room.width;
+    if (config.room.height)
+        caConfig.roomHeight = config.room.height;
+    if (config.room.rule)
+        caConfig.rule = config.room.rule;
+    if (config.view.scale)
+        caConfig.zoom = config.view.scale;
+    if (config.view.center)
+        caConfig.center = vec(...config.view.center);
     return caConfig;
 };
