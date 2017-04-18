@@ -29,6 +29,7 @@
         "rand": {
             "width": 192,
             "height": 192,
+            "shared": false,
             "type": "random"
         }
     }

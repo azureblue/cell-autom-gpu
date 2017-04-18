@@ -77,12 +77,18 @@ async function loadBoardFromBinUrl(width, height, url) {
 
 function DatasetLoader(datasetsConfig) {
     var dataLoader = new DataLoader();
-    var datasets = {};
-    this.loadDatasetBoard = async function (datasetName) {
-        if (datasets[datasetName] === undefined)
-            datasets[datasetName] = await load(datasetName);
+    var datasetBoards = {};
+    this.loadDatasetBoard = async function (name) {
+        var dataset = mapFields(datasetsConfig).get(name);
+        var shared = mapFields(dataset).get("shared", () => true);
+        if (datasetBoards[name] === undefined) {
+            var board = await load(name);
+            if (shared)
+                datasetBoards[name] = board;
+            return board;
+        }
 
-        return datasets[datasetName];
+        return datasetBoards[name];
     };
 
     async function load(datasetName) {
