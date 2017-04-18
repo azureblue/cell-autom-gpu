@@ -3,7 +3,7 @@
         <title>cellular automata simulation</title>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
-        <link rel="shortcut icon" href="">
+        <link rel="shortcut icon" href="favicon.ico">
         <style>
             * {border: 0px; width: 100%; height: 100%; margin: 0px;}
             canvas {position: absolute; background: transparent;}
@@ -79,12 +79,8 @@
                     });
                     var frame = 0;
                     var gpf = isDefiened(params.gpf) ? parseInt(params.gpf) : 1;
-                    
-
                     var iterating = (params.pause === "true") ? false : true;
-//                if (params.pause !== undefined)
-//                    iterating = params.pause === "true" ? true : false;
-                    
+
                     function nextIteration() {
                         frame++;
                         ca.render();
@@ -95,22 +91,6 @@
                         requestAnimationFrame(nextIteration);
                     }
                 }
-
-
-//                var board = new Board(1000, 1000);
-//                
-//        
-//                var ca = new CA(document.getElementById("canvas"), 2048, 1024, 2047, 1023);
-//                var params = createParamMap();
-//                if (params.rule !== undefined)
-//                    ca.setRule(params.rule);
-//                
-//                ca.updateSize();
-//                ca.setZoom(1);
-//                ca.setCenter(1024, 512);
-//                ca.putBoard(board, 523, 10);
-//                
-
             }
 
 
