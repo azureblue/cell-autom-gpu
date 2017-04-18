@@ -3,12 +3,23 @@ function Vec(x, y) {
     this.y = y === undefined ? 0 : y;
 }
 
-Vec.prototype.vector_to = function (vec) {
-    return new Vec(vec.x - this.x, vec.y - this.y);
+Vec.prototype = {
+    get width() {
+        return this.x;
+    },
+    set width(w) {
+        this.x = w;
+    },
+    get height() {
+        return this.y;
+    },
+    set height(h) {
+        this.y = h;
+    }
 };
 
-Vec.vec = function(x, y) {
-    return new Vec(x, y);
+Vec.prototype.vector_to = function (vec) {
+    return new Vec(vec.x - this.x, vec.y - this.y);
 };
 
 Vec.prototype.set = function (x, y) {
@@ -37,9 +48,15 @@ Vec.prototype.inverse = function () {
     return this;
 };
 
+Vec.prototype.transform = function(op) {
+    this.x = op(this.x);
+    this.y = op(this.y);
+    return this;
+};
+
 Vec.prototype.multiply = function(m, n) {
     this.x *= m;
-    this.y *= n || m;
+    this.y *= (n === undefined) ? m : n; 
     return this;
 };
 
@@ -52,6 +69,10 @@ Vec.prototype.add = function(m, n) {
 Vec.prototype[Symbol.iterator] = function*() {
     yield this.x;
     yield this.y;
+};
+
+Vec.vec = function(x, y) {
+    return new Vec(x, y);
 };
 
 Vec.dist = function(a, b) {

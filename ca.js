@@ -1,18 +1,17 @@
-var vec = Vec.vec;
+function vec(a, b) {
+    return Vec.vec(a, b);
+}
 
 function CA(caConfig) {
     const bufferWidth = caConfig.bufferWidth;
     const bufferHeight = caConfig.bufferHeight;
-    const roomWidth = caConfig.roomWidth;
-    const roomHeight = caConfig.roomHeight;
-    const roomWidthInBuff = roomWidth + 1;
-    const roomHeightInBuff = roomHeight + 1;
-    const roomsCols = (bufferWidth + roomWidthInBuff - 1) / roomWidthInBuff | 0;
-    const roomsRows = (bufferHeight + roomHeightInBuff - 1) / roomHeightInBuff | 0;
+    const roomSize = vec(caConfig.roomWidth, caConfig.roomHeight);
+    const roomSizeInBuff = vec(...roomSize).add(1);
+    const roomsGrid = vec((bufferWidth + roomSizeInBuff.width - 1) / roomSizeInBuff.width | 0,
+        (bufferHeight + roomSizeInBuff.height - 1) / roomSizeInBuff.height | 0);
     const ruleBaseSizePixels = 32;
-    const halfRuleSize = ruleBaseSizePixels / 2;
-    const ruleTexWidth = roundUpTo2Pow(roomsCols * halfRuleSize);
-    const ruleTexHeight = roundUpTo2Pow(roomsRows * 2);
+    const ruleSize = vec(ruleBaseSizePixels / 2, 2);
+    const ruleTexSize = vec(...ruleSize).multiply(...roomsGrid).transform(roundUpTo2Pow);
 
     const minZoom = 1 / (1 << 4);
     var canvas;
@@ -71,8 +70,6 @@ function CA(caConfig) {
         gl.clear(gl.COLOR_BUFFER_BIT);
         var pixXScale = 1 / bufferWidth * 2;
         var pixYScale = 1 / bufferHeight * 2;
-        program.uniform("bs", bufferWidth, bufferHeight);
-        program.uniform("rs", roomWidthInBuff, roomHeightInBuff);
         program.uniform("scale", pixXScale, -pixYScale);
         program.uniform("translation", -1, 1);
         program.uniform("ruleTex", 1);
@@ -146,9 +143,9 @@ function CA(caConfig) {
             throw "invalid rule: " + rule;
         var ruleLuts = parseRuleToLuts(rule);
         var rulesPixels = genRuleArrayPixel(...ruleLuts);
-        var offset = rx * halfRuleSize;
+        var offset = rx * ruleSize.width;
         gl.bindTexture(gl.TEXTURE_2D, ruleTex);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, offset, ry * 2, halfRuleSize, 2, gl.RGB, gl.UNSIGNED_BYTE, rulesPixels);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, offset, ry * ruleSize.height, ...ruleSize, gl.RGB, gl.UNSIGNED_BYTE, rulesPixels);
     }
 
     function initTextures() {
@@ -172,7 +169,7 @@ function CA(caConfig) {
 
         ruleTex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, ruleTex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, ruleTexWidth, ruleTexHeight, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, ...ruleTexSize, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -237,18 +234,16 @@ function CA(caConfig) {
                 precision mediump float;
         
                 uniform sampler2D tex;
-                uniform sampler2D ruleTex;
-                uniform vec2 bs;
-                uniform vec2 rs;
-                varying vec2 tp;                 
-        
-                vec2 cs = vec2(1.0, 1.0) / bs;
-                vec2 bsEdge = bs - 0.5;
-        
-                const vec2 rulePixUnit = 
-                    vec2(1.0 / float(${ruleTexWidth}), 1.0 / float(${ruleTexHeight}));
-        
-                const float halfRuleSize = float(${halfRuleSize});
+                uniform sampler2D ruleTex;              
+                varying vec2 tp; 
+                
+                const vec3 white = vec3(1.0, 1.0, 1.0);
+                const vec2 bs = vec2(${bufferWidth}.0, ${bufferHeight}.0);
+                const vec2 rs = vec2(${roomSizeInBuff.width}.0, ${roomSizeInBuff.height}.0);
+                const vec2 cs = vec2(1.0, 1.0) / bs;
+                const vec2 bsEdge = bs - 0.5;
+                const vec2 rulePixUnit = vec2(1.0 / ${ruleTexSize.width}.0, 1.0 / ${ruleTexSize.height}.0);
+                const vec2 ruleSize = vec2(${ruleSize.width}.0, ${ruleSize.height}.0);
                 
                 void main(void) {
                    float modx = mod(gl_FragCoord.x, rs.x);
@@ -258,8 +253,7 @@ function CA(caConfig) {
                        return;
                     }
         
-                   float rx = floor(gl_FragCoord.x / rs.x);
-                   float ry = floor((bs.y - gl_FragCoord.y) / rs.y);
+                   vec2 roomPos = floor(vec2(gl_FragCoord.x, bs.y - gl_FragCoord.y) / rs);
         
                    float adj = 0.0;
                    adj += texture2D(tex, vec2(tp.x - cs.x, tp.y - cs.y)).r;
@@ -272,9 +266,9 @@ function CA(caConfig) {
                    adj += texture2D(tex, vec2(tp.x + cs.x, tp.y + cs.y)).r;
         
                    float current = texture2D(tex, vec2(tp.x, tp.y)).r;
-                   vec2 rulePos = vec2(halfRuleSize * rx + adj + 0.5, ry * 2.0 + current + 0.5); 
+                   vec2 rulePos = roomPos * ruleSize + vec2(adj + 0.5, current + 0.5); 
                    float ruleCol = texture2D(ruleTex, rulePos * rulePixUnit).r;
-                   gl_FragColor = ruleCol == 1.0 ? vec4(1.0, 1.0, 1.0, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);
+                   gl_FragColor = vec4(white * ruleCol, 1.0);
                    
                 }
         `;
@@ -319,7 +313,7 @@ function CA(caConfig) {
         canvas.addEventListener("wheel", handle_mouse_wheel);
 
         caConfig.rooms.forEach(room => {
-            var roomPixelPos = vec(...room.pos).multiply(roomWidthInBuff, roomHeightInBuff).add(1, 1);
+            var roomPixelPos = vec(...room.pos).multiply(...roomSizeInBuff).add(1, 1);
             this.putBoard(room.board, ...roomPixelPos);
             this.setRule(...room.pos, room.rule);
         });
