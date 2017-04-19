@@ -1,0 +1,50 @@
+{
+    "simplified": "",
+
+    "substitutions": [
+        ["dataset.", "datasets.default."]
+    ],
+
+    "params": {
+        "width": {
+            "path": ["ca.buffer.width", "datasets.default.width"]
+        },    
+        "height": {
+            "path": ["ca.buffer.height", "datasets.default.height"]
+        },
+        "rule": {
+            "path": "state.rooms.0.rule"
+        }
+    },
+
+    "initial": {
+        "ca": {
+            "buffer": {
+                "width": 1024,
+                "height": 1024
+            },
+
+            "view": {
+                "scale": 2
+            }
+        },
+
+        "state": {
+            "rooms": [
+                {
+                    "pos": [0, 0],
+                    "rule": "B3/S23",
+                    "dataset": "default"
+                }
+            ]
+        },
+
+        "datasets": {    
+            "default": {
+                "width": 1024,
+                "height": 1024,
+                "type": "random"
+            }
+        }
+    }
+}

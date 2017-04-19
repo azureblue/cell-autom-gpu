@@ -22,11 +22,13 @@
             }
 
             function createParamMap() {
-                var map = {};
+                var map = new Map();
                 var params = window.location.search.substr(1).split("&");
                 params.forEach(par => {
                     var kv = par.split("=");
-                    map[kv[0]] = kv[1];
+                    if (kv[0].length === 0)
+                        return;
+                    map.set(kv[0], kv[1]);
                 });
                 return map;
             }
@@ -44,16 +46,18 @@
                 if (params.config)
                     loadCA(params.config).then(ca => start(ca));
                 else {
-                    var caConfig = new CaConfig(1024, 1024);
-                    caConfig.rooms = [
-                        {
-                            rule: params.rule || "B3/S23",
-                            board: new Board(1023, 1023, new Array(1023 * 1023).fill(0).map(() => randomBool() ? 1 : 0)),
-                            pos: new Vec(0, 0)
-                        }
-                    ];
-                    var ca = new CA(caConfig);
-                    start(ca);
+                    new GetParamsParser().createJsonConfig(params).then(config => createCAFromJson(config)
+                            .then(ca => start(ca)));
+//                    var caConfig = new CaConfig(1024, 1024);
+//                    caConfig.rooms = [
+//                        {
+//                            rule: params.rule || "B3/S23",
+//                            board: new Board(1023, 1023, new Array(1023 * 1023).fill(0).map(() => randomBool() ? 1 : 0)),
+//                            pos: new Vec(0, 0)
+//                        }
+//                    ];
+//                    var ca = new CA(caConfig);
+                    //start(ca);
                 }
 
                 function start(ca) {

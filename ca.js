@@ -117,43 +117,50 @@ function CA(caConfig) {
         gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
-    function genRuleArrayPixel(ruleBLut, ruleSLut) {
+    function genRuleArrayPixel(rule) {
         var ar = new Uint8Array(ruleBaseSizePixels * 3);
         for (var i = 0; i < 9; i++) {
-            ar[i * 3 + 0] = 255 * ruleBLut[i];
-            ar[i * 3 + 1] = 255 * ruleBLut[i];
-            ar[i * 3 + 2] = 255 * ruleBLut[i];
-            ar[(i + ruleBaseSizePixels / 2) * 3 + 0] = 255 * ruleSLut[i];
-            ar[(i + ruleBaseSizePixels / 2) * 3 + 1] = 255 * ruleSLut[i];
-            ar[(i + ruleBaseSizePixels / 2) * 3 + 2] = 255 * ruleSLut[i];
+            ar[i * 3 + 0] = 255 * rule.choose(0, i);
+            ar[i * 3 + 1] = 255 * rule.choose(0, i);
+            ar[i * 3 + 2] = 255 * rule.choose(0, i);
+            ar[(i + ruleBaseSizePixels / 2) * 3 + 0] = 255 * rule.choose(1, i);
+            ar[(i + ruleBaseSizePixels / 2) * 3 + 1] = 255 * rule.choose(1, i);
+            ar[(i + ruleBaseSizePixels / 2) * 3 + 2] = 255 * rule.choose(1, i);
         }
         return ar;
     }
 
-    function parseRuleToLuts(rule) {
-        var ruleLut = [new Uint8Array(9), new Uint8Array(9)];
-        rule.split("/").forEach((subRule, half) =>
-            subRule.substring(1).split("").forEach(ch => ruleLut[half][parseInt(ch)] = 1)
-        );
-        return ruleLut;
-    }
-
     function setRule(rx, ry, rule) {
-        if (!rule.match("B[0-9]*/S[0-9]*"))
-            throw "invalid rule: " + rule;
-        var ruleLuts = parseRuleToLuts(rule);
-        var rulesPixels = genRuleArrayPixel(...ruleLuts);
+        var rulesPixels = genRuleArrayPixel(rule);
         var offset = rx * ruleSize.width;
         gl.bindTexture(gl.TEXTURE_2D, ruleTex);
         gl.texSubImage2D(gl.TEXTURE_2D, 0, offset, ry * ruleSize.height, ...ruleSize, gl.RGB, gl.UNSIGNED_BYTE, rulesPixels);
     }
+    
+    function Rule(lutB, lutS) {
+        this.choose = (currentState, adjs) => (currentState === 0 ? lutB : lutS)[adjs];
+    }
+    
+    Rule.parse = function(rule) {
+        var ruleLuts = [new Uint8Array(9), new Uint8Array(9)];
+        if (rule.match("B[0-9]*/S[0-9]*")) {
+            rule.split("/").forEach((subRule, half) =>
+                subRule.substring(1).split("").forEach(ch => ruleLuts[half][parseInt(ch)] = 1)
+            );
+        } else if(rule.match("[0-9]*/[0-9]*")) {
+            rule.split("/").forEach((subRule, half) =>
+                subRule.split("").forEach(ch => ruleLuts[1 - half][parseInt(ch)] = 1)
+            );
+        } else 
+            throw "invalid rule: " + rule;
+        
+        return new Rule(...ruleLuts);
+    };
 
     function initTextures() {
-        var srcBufferPixelArray = new Uint8Array(bufferWidth * bufferHeight * 3);
-
         srcTex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, srcTex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, bufferWidth, bufferHeight, 0, gl.RGB, gl.UNSIGNED_BYTE, srcBufferPixelArray);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, bufferWidth, bufferHeight, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -182,8 +189,6 @@ function CA(caConfig) {
         frameBufferSrc = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferSrc);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, srcTex, 0);
-        gl.bindTexture(gl.TEXTURE_2D, srcTex);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, bufferWidth, bufferHeight, gl.RGB, gl.UNSIGNED_BYTE, srcBufferPixelArray);
     }
 
     function createRenderProgram() {
@@ -315,7 +320,7 @@ function CA(caConfig) {
         caConfig.rooms.forEach(room => {
             var roomPixelPos = vec(...room.pos).multiply(...roomSizeInBuff).add(1, 1);
             this.putBoard(room.board, ...roomPixelPos);
-            this.setRule(...room.pos, room.rule);
+            this.setRule(...room.pos, Rule.parse(room.rule));
         });
     }
 
@@ -399,8 +404,8 @@ function CA(caConfig) {
     }
 
     this.putBoard = function (board, xx, yy) {
-        var bw = board.getWidth();
-        var bh = board.getHeight();
+        var bw = Math.min(roomSize.width, board.getWidth());
+        var bh = Math.min(roomSize.height, board.getHeight());
         var black = new Color(0, 0, 0);
         var white = new Color(255, 255, 255);
         var pixelSize = 3;
@@ -408,6 +413,8 @@ function CA(caConfig) {
         var rowSize = Math.floor((bw * pixelSize + alignment - 1) / alignment) * alignment;
         var srcBufferPixelArray = new Uint8Array(rowSize * bh);
         board.iteratePositions((x, y, v) => {
+            if (x >= bw || y >= bh)
+                return;
             var idx = ((bh - y - 1) * rowSize + x * pixelSize);
             var color = v === 0 ? black : white;
             srcBufferPixelArray[idx + 0] = color.r;
@@ -422,9 +429,8 @@ function CA(caConfig) {
 function CaConfig(bufferWidth, bufferHeight) {
     this.bufferWidth = bufferWidth;
     this.bufferHeight = bufferHeight;
-    this.roomWidth = bufferWidth;
-    this.roomHeight = bufferHeight;
-    this.rule = "B3/S23";
+    this.roomWidth = bufferWidth - 1;
+    this.roomHeight = bufferHeight - 1;
     this.zoom = 1;
     this.center = vec(bufferWidth / 2, bufferHeight / 2);
     this.rooms = [];
@@ -433,12 +439,12 @@ function CaConfig(bufferWidth, bufferHeight) {
 
 CaConfig.fromJsonCaConfig = function (config) {
     var caConfig = new CaConfig(config.buffer.width, config.buffer.height);
-    if (config.room.width)
-        caConfig.roomWidth = config.room.width;
-    if (config.room.height)
+    if (config.room) {
+        if (config.room.width)
+            caConfig.roomWidth = config.room.width;
+        if (config.room.height)
         caConfig.roomHeight = config.room.height;
-    if (config.room.rule)
-        caConfig.rule = config.room.rule;
+    }
     if (config.view.scale)
         caConfig.zoom = config.view.scale;
     if (config.view.center)

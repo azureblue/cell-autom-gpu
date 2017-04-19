@@ -1,3 +1,38 @@
+function GetParamsParser() {
+
+    this.createJsonConfig = async function (paramsMap) {
+        var mapping = JSON.parse(await loadData("configs/get-params-mapping.json", "text"));
+        var config = mapping.initial;
+        var substitutions = mapping.substitutions;
+        Array.from(paramsMap.keys()).forEach(param => {
+            var value = paramsMap.get(param);
+            if (mapping.params[param] !== undefined) {
+                var paths = [].concat(mapping.params[param].path);
+                paths.forEach(path => setPath(config, path, value));
+                return;
+            }
+            substitutions.forEach(sub => param = param.replace(sub[0], sub[1]));
+            setPath(config, param, value);
+        });
+        return JSON.stringify(config);
+    };
+
+    function setPath(root, path, value) {
+        value = ("" + parseInt(value) === value ? parseInt(value) : value);
+        var loc = root;
+        path = path.split(".");
+        path.forEach((part, idx) => {
+            if (idx === path.length - 1) {
+                loc[part] = value;
+                return;
+            }
+            if (loc[part] === undefined)
+                loc[part] = {};
+            loc = loc[part];
+        });
+    }
+}
+
 async function loadData(url, responseType) {
     return await new Promise((resolve, reject) => {
         var req = new XMLHttpRequest();
@@ -49,6 +84,7 @@ async function createCAFromJson(configJson) {
         throw "invalid state definition";
 
     var caConfig = CaConfig.fromJsonCaConfig(config.ca);
+
     caConfig.rooms = rooms;
 
     return new CA(caConfig);
@@ -69,7 +105,7 @@ async function loadBoardFromBinUrl(width, height, url) {
     //assume no padding for now...
     for (var i = 0; i < ar.length; i++)
         ar[i] = (byteView[i / 8 | 0] >> (7 - i % 8)) & 1;
-    
+
     return board;
 }
 
@@ -119,11 +155,11 @@ function DataLoader() {
         }
     };
 
-    this.loadBoard = async function(dataConfing, board) {
+    this.loadBoard = async function (dataConfing, board) {
         var dataFields = mapFields(dataConfing);
         var format = dataFields.get("format");
         var init = createInitializer(format);
-        
+
         var dataResource;
         if (isDefiened(dataConfing["url"]))
             dataResource = new UrlDataLoader(dataConfing["url"], loadersConfig[format].dataType);
@@ -133,10 +169,10 @@ function DataLoader() {
             dataResource = {load: () => dataConfing["textLines"].map(line => line.trim()).join('\n')};
         if (!isDefiened(dataResource))
             throw "invalid data config: " + JSON.stringify(dataConfing);
-        
+
         init.initBoard(board, await dataResource.load());
     };
-    
+
     function createInitializer(name) {
         return new (loadersConfig[name].initializer)();
     }
@@ -147,14 +183,14 @@ function UrlDataLoader(url, dataType) {
         binary: "arraybuffer",
         text: "text"
     };
-    
-    this.load = async function() {
+
+    this.load = async function () {
         return await loadData(url, responseTypeMap[dataType]);
     };
 }
 
 function Life105Initializer() {
-    this.initBoard = function(board, text) {
+    this.initBoard = function (board, text) {
         var posRegex = /(-?\d+)\s*(-?\d+)/;
         var middlePos = new Vec(board.getWidth() / 2 | 0, board.getHeight() / 2 | 0);
         var currentPos = new Vec(...middlePos);
@@ -180,12 +216,12 @@ function Life105Initializer() {
 }
 
 function BitsInitializer() {
-    this.initBoard = function(board, buffer) {
+    this.initBoard = function (board, buffer) {
         var ar = board.getArray();
         var byteView = new Uint8Array(buffer);
         //assume no padding for now...
         for (var i = 0; i < ar.length; i++)
-        ar[i] = (byteView[i / 8 | 0] >> (7 - i % 8)) & 1;
+            ar[i] = (byteView[i / 8 | 0] >> (7 - i % 8)) & 1;
     };
 }
 
