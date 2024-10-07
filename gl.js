@@ -1,3 +1,7 @@
+/**
+ *  
+ * @param {WebGLRenderingContext} gl 
+ */
 function Program(prog, gl) {
     var uniformSetters = Program.createUniformSettersMap(gl);
     var uniforms = {};
@@ -46,12 +50,15 @@ function Program(prog, gl) {
         uniforms[name].setter(uniforms[name].location, ...values);
     };
 }
-
+/**
+ * @param {WebGLRenderingContext} gl;
+ */
 Program.createUniformSettersMap = function(gl) {
     var map = new Map();
     map.set(gl.FLOAT_VEC2, gl.uniform2f);
     map.set(gl.FLOAT_VEC3, gl.uniform3f);
     map.set(gl.FLOAT_MAT4, gl.uniformMatrix4fv);
+    map.set(gl.FLOAT_MAT2, gl.uniformMatrix2fv);
     map.set(gl.SAMPLER_2D, gl.uniform1i);
     return map;
 };

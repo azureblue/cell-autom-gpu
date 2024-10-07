@@ -1,26 +1,37 @@
+Math.radians = function(degrees) {
+	return degrees * 0.017453292519943295;
+}
+
+Math.degrees = function(radians) {
+	return radians * 57.29577951308232;
+}
+
 function Vec(x, y) {
     this.x = x === undefined ? 0 : x;
     this.y = y === undefined ? 0 : y;
+    
 }
-
-Vec.prototype = {
-    get width() {
-        return this.x;
-    },
-    set width(w) {
-        this.x = w;
-    },
-    get height() {
-        return this.y;
-    },
-    set height(h) {
-        this.y = h;
-    }
-};
 
 Vec.prototype.vector_to = function (vec) {
     return new Vec(vec.x - this.x, vec.y - this.y);
 };
+
+
+Vec.prototype.rotate = function (angle) {
+    let xx = this.x * Math.cos(angle) - this.y * Math.sin(angle);
+    let yy = this.x * Math.sin(angle) + this.y * Math.cos(angle);
+    this.x = xx;
+    this.y = yy;
+}
+
+
+Vec.prototype.rotations = [...(function* () {
+    for (let deg = 0; deg < 720; deg++) {
+        let v = new Vec(1, 0);
+        v.rotate(Math.radians(deg / 2.0));
+        yield v;
+    }
+})()]
 
 Vec.prototype.set = function (x, y) {
     this.x = x;
@@ -60,6 +71,12 @@ Vec.prototype.multiply = function(m, n) {
     return this;
 };
 
+Vec.prototype.translate = function(x, y) {
+    this.x += x;
+    this.y += y;
+    return this;
+}
+
 Vec.prototype.add = function(m, n) {
     this.x += m;
     this.y += n || m;
@@ -86,26 +103,40 @@ Vec.from_event = function (event) {
     return new Vec(event.offsetX, event.offsetY);
 };
 
-function Rect(x, y, width, height) {
-    this.x = x;
-    this.y = y;
-    this.width = width;
-    this.height = height;
+class Frame {
+    constructor() {
+        this.points = [vec(0, 0), vec(0, 0), vec(0, 0), vec(0, 0)];
+    }
+    reset(size) {
+        let halfSize = size / 2;
+        this.points[0].set(-halfSize, -halfSize);
+        this.points[1].set(-halfSize, halfSize);
+        this.points[2].set(halfSize, halfSize);
+        this.points[3].set(halfSize, -halfSize);
+    }
+
+    translate(x, y) {
+        this.points[0].translate(x, y);
+        this.points[1].translate(x, y);
+        this.points[2].translate(x, y);
+        this.points[3].translate(x, y);
+    }
+    
+    rotate(alpha) {
+        this.points[0].rotate(alpha);
+        this.points[1].rotate(alpha);
+        this.points[2].rotate(alpha);
+        this.points[3].rotate(alpha);
+        // let rm = [
+        //     Math.cos(alpha), -Math.sin(alpha), 
+        //     Math.sin(alpha), Math.cos(alpha)
+        // ];
+
+    }
 }
 
-Rect.prototype.inside = function(x, y) {
-    return (x >= this.x
-            && x < this.x + this.width
-            && y >= this.y
-            && y < this.y + this.height);
-};
 
-Rect.prototype.intersects = function (rect) {
-    if (rect.x + rect.width > this.x
-            && rect.x < this.x + this.width
-            && rect.y + rect.height > this.y
-            && rect.y < this.y + this.height)
-        return true;
-    return false;
-};
-  
+
+function vec(a, b) {
+    return Vec.vec(a, b);
+}
